@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// --- Conexión a Mongo Atlas usando Environment Variable ---
+// --- Conexión a Mongo Atlas ---
 const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -64,6 +64,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-
-// deploy fuerza
-
