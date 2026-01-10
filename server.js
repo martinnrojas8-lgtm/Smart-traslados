@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -9,12 +8,7 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// --- Conexión a Mongo Atlas ---
-const mongoUser = "martinnrojas8_db_user";
-const mongoPass = "ZafcReO11kyEXap";
-const mongoCluster = "cluster0.mongodb.net";
-const dbName = "smartApp";
-
+// --- Conexión a Mongo Atlas usando variable de entorno ---
 const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -29,7 +23,7 @@ const usuarioSchema = new mongoose.Schema({
 
 const Usuario = mongoose.model("Usuario", usuarioSchema);
 
-// --- Rutas de API ---
+// --- Rutas ---
 app.post("/register", async (req, res) => {
   const { telefono, rol } = req.body;
   if (!telefono || !rol) return res.status(400).json({ error: "Datos incompletos" });
@@ -62,17 +56,11 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// --- Servir frontend ---
-const frontendPath = path.join(__dirname); // si login.html, chofer, admin, pasajeros están en la misma carpeta que server.js
-app.use(express.static(frontendPath));
-
 app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "login.html")); // página de inicio central
+  res.send("Backend Smart funcionando");
 });
 
 // --- Iniciar servidor ---
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-
-
