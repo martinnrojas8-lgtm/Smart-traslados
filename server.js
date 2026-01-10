@@ -11,9 +11,20 @@ app.use(express.json());
 // --- Conexión a Mongo Atlas ---
 const mongoURI = process.env.MONGO_URI;
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB conectado"))
-  .catch(err => console.error("Error de conexión MongoDB:", err));
+if (!mongoURI) {
+  console.error("MONGO_URI no definido en Environment Variables");
+  process.exit(1);
+}
+
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("MongoDB conectado"))
+.catch(err => {
+  console.error("Error de conexión MongoDB:", err);
+  process.exit(1);
+});
 
 // --- Modelo de usuario ---
 const usuarioSchema = new mongoose.Schema({
@@ -57,7 +68,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Backend Smart funcionando con Mongo");
+  res.send("Backend Smart funcionando");
 });
 
 // --- Iniciar servidor ---
