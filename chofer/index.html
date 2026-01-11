@@ -4,104 +4,126 @@
 <meta charset="UTF-8">
 <title>Smart Traslados – Chofer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="../manifest.json">
-<meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/file_000000008fd0720eb71af76359ccb359.png">
+
 <style>
-  body{margin:0;font-family:Arial,sans-serif;background:#f2f2f2;}
-  header{background:#000;color:#fff;padding:15px;text-align:center;}
-  .screen{padding:20px;}
-  .card{background:#fff;border-radius:10px;padding:15px;margin-top:15px;box-shadow:0 2px 5px rgba(0,0,0,.2);}
-  button{padding:12px;width:100%;margin-top:10px;border:none;border-radius:6px;background:#00c853;color:#000;font-weight:bold;cursor:pointer;}
-  #map{width:100%;height:300px;border-radius:10px;margin-top:10px;background:#ddd;display:flex;align-items:center;justify-content:center;}
-  .logout{background:#ff5252;color:#fff;}
-  .hidden{display:none;}
+  body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
+  header{ background:#111; padding:15px; text-align:center; border-bottom:2px solid #00c853; }
+  .screen{ padding:15px; }
+  .card{ background:#111; border-radius:12px; padding:15px; margin-bottom:15px; border:1px solid #333; }
+  h3{ margin-top:0; color:#00c853; font-size:16px; }
+  #map{ width:100%; height:300px; border-radius:10px; margin-bottom:10px; background:#222; }
+  button{ padding:12px; width:100%; margin-top:10px; border:none; border-radius:8px; background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
+  .logout{ background:#333; color:#aaa; font-size:12px; margin-top:20px; }
+  .hidden{ display:none; }
+  .info-viaje{ background:#222; padding:10px; border-radius:8px; margin-top:10px; border-left:4px solid #00c853; }
+  .price-tag{ font-size:22px; color:#00c853; font-weight:bold; display:block; margin-top:5px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h2>Chofer</h2>
-  <div id="userInfo"></div>
+  <h2 style="margin:0; font-size:18px;">Smart Chofer</h2>
+  <div id="userInfo" style="font-size:12px; color:#aaa;">Cargando...</div>
 </header>
 
 <div class="screen">
   <div class="card">
-    <h3>Tu ubicación</h3>
-    <div id="map">Cargando mapa…</div>
+    <h3>Mi Ubicación</h3>
+    <div id="map"></div>
   </div>
-  <div class="card">
-    <h3>Solicitud</h3>
-    <div id="solicitud">Esperando viajes…</div>
-    <button id="btnAceptar" class="hidden" onclick="aceptarViaje()">Aceptar viaje</button>
+
+  <div id="panelSolicitud" class="card">
+    <h3>Estado: Disponible</h3>
+    <div id="detalleViaje">Esperando nuevos pedidos de pasajeros...</div>
+    
+    <div id="datosViaje" class="hidden">
+        <div class="info-viaje">
+            <strong>Ruta:</strong> <span id="rutaTexto">...</span><br>
+            <strong>Cobrar:</strong> <span id="precioTexto" class="price-tag">$0.00</span>
+        </div>
+        <button id="btnAceptar" onclick="aceptarViaje()">ACEPTAR VIAJE</button>
+    </div>
   </div>
-  <button class="logout" onclick="cerrarSesion()">Cerrar sesión</button>
+
+  <button class="logout" onclick="cerrarSesion()">CERRAR SESIÓN</button>
 </div>
 
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&libraries=places"></script>
+
 <script>
-/* ===== PROTECCIÓN DE SESIÓN ===== */
-const sesion = JSON.parse(localStorage.getItem("sesion"));
+let map, directionsRenderer, directionsService, userMarker;
+const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 
-// Si no hay sesión o el rol no es chofer, mandamos a la raíz (Login)
-if(!sesion || sesion.rol !== "chofer"){
-  location.href = "/"; 
-} else {
-  document.getElementById("userInfo").innerText = "Tel: " + sesion.telefono;
-}
+if(!sesion || sesion.rol !== "chofer") { location.href = "/"; }
+document.getElementById("userInfo").innerText = "Chofer: " + sesion.telefono;
 
-/* ===== MAPA ===== */
-let map, marker, userLat, userLng;
+function initMap() {
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        polylineOptions: { strokeColor: "#00c853", strokeWeight: 5 }
+    });
 
-function initMap(){
-  if(!navigator.geolocation){
-    document.getElementById("map").innerText = "Geolocalización no disponible";
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
-      map = new google.maps.Map(document.getElementById("map"),{
-        center:{lat:userLat,lng:userLng},
-        zoom:15
-      });
-      marker = new google.maps.Marker({
-        position:{lat:userLat,lng:userLng},
-        map,
-        title:"Tu ubicación"
-      });
-      escucharViajes();
-    },
-    ()=>{ document.getElementById("map").innerText = "Activa el GPS para trabajar"; }
-  );
-}
-
-function escucharViajes(){
-  setInterval(()=>{
-    const viaje = JSON.parse(localStorage.getItem("viajeActivo"));
-    if(viaje && viaje.estado === "buscando"){
-      document.getElementById("solicitud").innerText = "¡NUEVO VIAJE DISPONIBLE!";
-      document.getElementById("btnAceptar").classList.remove("hidden");
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: myPos,
+                zoom: 15,
+                disableDefaultUI: true,
+                styles: [{ "featureType": "all", "elementType": "labels.text.fill", "stylers": [{"color": "#ffffff"}] }] // Modo oscuro básico
+            });
+            directionsRenderer.setMap(map);
+            userMarker = new google.maps.Marker({ position: myPos, map: map, icon: 'https://maps.google.com/mapfiles/kml/pal4/icon62.png' });
+            
+            // Empezar a buscar viajes
+            buscarViajes();
+        });
     }
-  }, 2000);
 }
 
-function aceptarViaje(){
-  const viaje = JSON.parse(localStorage.getItem("viajeActivo"));
-  if(!viaje) return;
-  viaje.estado = "aceptado";
-  viaje.chofer = sesion.telefono;
-  viaje.choferUbicacion = { lat:userLat, lng:userLng };
-  localStorage.setItem("viajeActivo", JSON.stringify(viaje));
-  document.getElementById("solicitud").innerText = "Viaje aceptado. En camino...";
-  document.getElementById("btnAceptar").classList.add("hidden");
+function buscarViajes() {
+    // Simulamos la escucha del servidor (Luego lo conectaremos a tu MongoDB)
+    setInterval(() => {
+        const viajeGuardado = JSON.parse(localStorage.getItem("nuevoViajePendiente"));
+        if(viajeGuardado && !document.getElementById("btnAceptar").disabled) {
+            document.getElementById("panelSolicitud").querySelector("h3").innerText = "¡PEDIDO RECIBIDO!";
+            document.getElementById("detalleViaje").classList.add("hidden");
+            document.getElementById("datosViaje").classList.remove("hidden");
+            document.getElementById("rutaTexto").innerText = "De " + viajeGuardado.origen + " a " + viajeGuardado.destino;
+            document.getElementById("precioTexto").innerText = "$" + viajeGuardado.precio;
+            
+            // Dibujar la ruta en el mapa del chofer
+            trazarRuta(viajeGuardado);
+        }
+    }, 3000);
 }
 
-function cerrarSesion(){
-  localStorage.removeItem("sesion");
-  location.href = "/";
+function trazarRuta(viaje) {
+    const request = {
+        origin: viaje.origen,
+        destination: viaje.destino,
+        travelMode: 'DRIVING'
+    };
+    directionsService.route(request, (result, status) => {
+        if (status == 'OK') directionsRenderer.setDirections(result);
+    });
 }
+
+function aceptarViaje() {
+    alert("Viaje confirmado. El pasajero está siendo notificado.");
+    document.getElementById("btnAceptar").innerText = "EN CAMINO...";
+    document.getElementById("btnAceptar").disabled = true;
+    document.getElementById("btnAceptar").style.background = "#444";
+}
+
+function cerrarSesion() {
+    localStorage.removeItem("sesion");
+    location.href = "/";
+}
+
+initMap();
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&callback=initMap" async defer></script>
 </body>
 </html>
