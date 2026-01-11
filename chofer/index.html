@@ -6,20 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.json">
 <style>
-  /* CSS PARA NITIDEZ Y DISEÑO */
+  /* CSS CORREGIDO PARA MÁXIMA NITIDEZ */
   body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
   header{ background:#111; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #00c853; }
   .screen{ padding:15px; }
   .card{ background:#111; border-radius:12px; padding:15px; margin-bottom:15px; border:1px solid #333; }
   
-  /* Contenedor de mapa optimizado */
+  /* Contenedor de mapa idéntico al de pasajeros para consistencia */
   #map{ 
     width:100%; 
     height:350px; 
     border-radius:10px; 
-    background:#222; 
-    image-rendering: -webkit-optimize-contrast; /* Para mayor nitidez en móviles */
-    image-rendering: crisp-edges;
+    background:#222;
+    /* Se eliminó image-rendering para evitar que se pixele en móviles */
   }
   
   .btn-perfil{ width:40px; height:40px; border-radius:50%; border:2px solid #00c853; overflow:hidden; cursor:pointer; background:#333; display:flex; align-items:center; justify-content:center; }
@@ -70,7 +69,6 @@
 <script>
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 
-// SEGURIDAD: Si no hay login o perfil, rebota
 if (!sesion.telefono) { 
     location.href = "/"; 
 } else if (!sesion.nombre) { 
@@ -80,7 +78,6 @@ if (!sesion.telefono) {
 let map, userMarker;
 
 function initMap() {
-    // Foto de perfil en el círculo superior
     if(sesion.foto) {
         document.getElementById("fotoHeader").src = sesion.foto;
         document.getElementById("fotoHeader").style.display = "block";
@@ -91,45 +88,45 @@ function initMap() {
         navigator.geolocation.getCurrentPosition(pos => {
             const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             
-            // MAPA EN ALTA DEFINICIÓN
+            // CONFIGURACIÓN DE MAPA IGUAL A PASAJEROS (Nítida y Vectorial)
             map = new google.maps.Map(document.getElementById("map"), {
                 center: myPos,
                 zoom: 17,
                 disableDefaultUI: true,
-                scaleControl: true, // Ayuda a la nitidez
-                styles: [
-                    { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-                    { "elementType": "labels.text.fill", "stylers": [{ "color": "#ffffff" }] },
-                    { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#303030" }] }
-                ]
+                gestureHandling: "greedy" // Mejora la respuesta táctil en móviles
             });
 
+            // Marcador de posición del chofer
             userMarker = new google.maps.Marker({
                 position: myPos,
                 map: map,
+                title: "Tu ubicación",
+                // Usamos el marcador estándar de Google o uno escalado correctamente
                 icon: {
-                    url: 'https://maps.google.com/mapfiles/kml/shapes/car.png',
-                    scaledSize: new google.maps.Size(30, 30)
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: "#00c853",
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "#fff"
                 }
             });
             
-            // Al terminar de cargar, el chofer se pone a buscar viajes
             empezarABuscar();
             
-        }, () => alert("GPS obligatorio para trabajar."));
+        }, () => alert("GPS obligatorio para trabajar. Por favor, activalo."));
     }
 }
 
-// ESTO ES LO QUE VIENE: Lógica de búsqueda
 function empezarABuscar() {
-    console.log("Chofer activo. Buscando viajes en el servidor...");
-    // Aquí pondremos el reloj para consultar al servidor
+    console.log("Chofer activo. Buscando viajes...");
 }
 
 function aceptarViaje() {
     alert("¡Viaje aceptado!");
 }
 
+// Aseguramos que el mapa se cargue correctamente
 window.onload = initMap;
 </script>
 </body>
