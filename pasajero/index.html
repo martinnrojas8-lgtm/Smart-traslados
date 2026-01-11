@@ -4,66 +4,161 @@
 <meta charset="UTF-8">
 <title>Smart Traslados – Pasajero</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/file_000000008fd0720eb71af76359ccb359.png">
+
 <style>
-  body{margin:0;font-family:Arial,sans-serif;background:#f2f2f2;}
-  header{background:#000;color:#fff;padding:15px;text-align:center;}
-  .screen{padding:20px;}
-  button{padding:12px;width:100%;margin-top:10px;border:none;border-radius:6px;background:#00c853;color:#000;font-weight:bold;cursor:pointer;}
-  .card{background:#fff;border-radius:10px;padding:15px;margin-top:15px;box-shadow:0 2px 5px rgba(0,0,0,.2);}
-  #map{width:100%;height:300px;border-radius:10px;margin-top:10px;background:#ddd;display:flex;align-items:center;justify-content:center;}
+  body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
+  header{ background:#111; padding:15px; text-align:center; border-bottom:2px solid #00c853; }
+  .screen{ padding:15px; }
+  .card{ background:#111; border-radius:12px; padding:15px; margin-bottom:15px; border:1px solid #333; }
+  input{ width:100%; padding:12px; margin:5px 0; border-radius:8px; border:none; background:#222; color:#fff; box-sizing:border-box; }
+  button{ padding:12px; width:100%; margin-top:10px; border:none; border-radius:8px; background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
+  .btn-stop{ background:#333; color:#fff; font-size:12px; width:auto; padding:8px 15px; margin-top:5px; }
+  .price-box{ font-size:24px; color:#00c853; font-weight:bold; text-align:center; margin:15px 0; border: 1px dashed #00c853; padding: 10px; border-radius: 8px; }
+  #map{ width:100%; height:250px; border-radius:10px; margin-bottom:10px; }
+  .stop-item{ display:flex; gap:5px; align-items:center; margin-top:5px; }
+  .btn-del{ background:#ff5252; width:45px; flex-shrink:0; }
 </style>
 </head>
 <body>
 
 <header>
-  <h2>Pasajero</h2>
-  <div id="userInfo">Verificando...</div>
+  <h2 style="margin:0; font-size:18px;">Smart Traslados</h2>
+  <div id="userInfo" style="font-size:12px; color:#aaa;">Cargando...</div>
 </header>
 
 <div class="screen">
   <div class="card">
-    <h3>Solicitar viaje</h3>
-    <div id="map">Cargando mapa…</div>
-    <button onclick="pedirViaje()">Pedir viaje</button>
+    <div id="map"></div>
+    
+    <label>Origen:</label>
+    <input type="text" id="origen" placeholder="Cargando ubicación...">
+    
+    <label>Destino:</label>
+    <input type="text" id="destino" placeholder="¿A dónde vas?">
+    
+    <div id="contenedorParadas"></div>
+    <button class="btn-stop" onclick="agregarParada()">+ Agregar Parada</button>
+
+    <div class="price-box" id="cuadroPrecio">Total: $0</div>
+    <div id="infoRuta" style="font-size:12px; text-align:center; color:#888;">0 km | 0 min</div>
+    
+    <button id="btnPedir" onclick="pedirViaje()">SOLICITAR AHORA</button>
+    <button style="background:#444; color:#fff;" onclick="location.reload()">REINICIAR</button>
   </div>
-  <button style="background:#ff5252;color:#fff;" onclick="cerrarSesion()">Cerrar sesión</button>
 </div>
 
-<script>
-/* ===== PRUEBA DE DIAGNÓSTICO ===== */
-const rawData = localStorage.getItem("sesion");
-console.log("Datos crudos en storage:", rawData);
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeXV1ZmTBpGBIE6MwG8HvIAXziKUPK1d8&libraries=places"></script>
 
-if (!rawData) {
-    alert("ERROR: No se encontró ninguna sesión en el almacenamiento. Volviendo al login.");
-    location.href = "/";
-} else {
-    const sesion = JSON.parse(rawData);
-    
-    if (sesion.rol !== "pasajero") {
-        alert("ERROR: Tu rol es '" + sesion.rol + "' y no 'pasajero'. Volviendo al login.");
-        location.href = "/";
-    } else {
-        // SI TODO ESTÁ BIEN
-        document.getElementById("userInfo").innerText = "Tel: " + sesion.telefono;
+<script>
+let map, directionsService, directionsRenderer;
+let paradas = [];
+const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
+
+// Configuración inicial de tarifa (estos valores luego se traen del servidor)
+let valorKM = 300; 
+let valorBase = 500;
+
+function initApp() {
+    if(!sesion.telefono) { location.href="/"; return; }
+    document.getElementById("userInfo").innerText = "Pasajero: " + sesion.telefono;
+
+    // Inicializar Google Maps
+    const center = { lat: -34.6037, lng: -58.3816 };
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: center,
+        zoom: 15,
+        disableDefaultUI: true,
+        styles: [{backgroundColor: "#222"}] // Podés agregar un estilo oscuro de Google Maps
+    });
+
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+    // Autocompletado de Google
+    const setupAutocomplete = (id) => {
+        const input = document.getElementById(id);
+        const auto = new google.maps.places.Autocomplete(input);
+        auto.addListener("place_changed", calcularRuta);
+    };
+
+    setupAutocomplete("origen");
+    setupAutocomplete("destino");
+
+    // Obtener ubicación actual
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(p => {
+            const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+            map.setCenter(pos);
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({location: pos}, (results, status) => {
+                if(status === "OK" && results[0]) document.getElementById("origen").value = results[0].formatted_address;
+            });
+        });
     }
 }
 
-/* ===== FUNCIONES DEL MAPA Y VIAJE (Se mantienen igual) ===== */
-let map, marker, userLat, userLng;
-function initMap(){
-  if(!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(pos=>{
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
-      map = new google.maps.Map(document.getElementById("map"),{center:{lat:userLat,lng:userLng},zoom:15});
-      marker = new google.maps.Marker({position:{lat:userLat,lng:userLng},map,title:"Tu ubicación"});
-  });
+function agregarParada() {
+    const id = "parada-" + Date.now();
+    const div = document.createElement("div");
+    div.className = "stop-item";
+    div.id = id;
+    div.innerHTML = `
+        <input type="text" placeholder="Dirección de parada" class="input-parada">
+        <button class="btn-del" onclick="eliminarParada('${id}')">X</button>
+    `;
+    document.getElementById("contenedorParadas").appendChild(div);
+    
+    // Autocompletado para la nueva parada
+    const input = div.querySelector("input");
+    const auto = new google.maps.places.Autocomplete(input);
+    auto.addListener("place_changed", calcularRuta);
 }
-function pedirViaje(){ alert("Buscando chofer..."); }
-function cerrarSesion(){ localStorage.removeItem("sesion"); location.href = "/"; }
-</script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeXV1ZmTBpGBIE6MwG8HvIAXziKUPK1d8&callback=initMap" async defer></script>
+function eliminarParada(id) {
+    document.getElementById(id).remove();
+    calcularRuta();
+}
+
+function calcularRuta() {
+    const origen = document.getElementById("origen").value;
+    const destino = document.getElementById("destino").value;
+    if(!origen || !destino) return;
+
+    const waypoints = [];
+    const inputsParadas = document.querySelectorAll(".input-parada");
+    inputsParadas.forEach(inp => {
+        if(inp.value) waypoints.push({ location: inp.value, stopover: true });
+    });
+
+    directionsService.route({
+        origin: origen,
+        destination: destino,
+        waypoints: waypoints,
+        travelMode: google.maps.TravelMode.DRIVING
+    }, (response, status) => {
+        if (status === "OK") {
+            directionsRenderer.setDirections(response);
+            let totalDistancia = 0; // en metros
+            const legs = response.routes[0].legs;
+            legs.forEach(leg => { totalDistancia += leg.distance.value; });
+
+            const km = totalDistancia / 1000;
+            const precioFinal = valorBase + (km * valorKM);
+
+            document.getElementById("cuadroPrecio").innerText = "Total: $" + precioFinal.toFixed(2);
+            document.getElementById("infoRuta").innerText = km.toFixed(1) + " km | " + legs[0].duration.text;
+        }
+    });
+}
+
+function pedirViaje() {
+    alert("Enviando solicitud al chofer...");
+    // Aquí mandaremos los datos a MongoDB en el siguiente paso
+}
+
+initApp();
+</script>
 </body>
 </html>
