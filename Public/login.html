@@ -2,118 +2,70 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Smart Traslados - Ingreso</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Traslados - Inicio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="apple-touch-icon" href="https://tu-dominio.com/file_000000008fd0720eb71af76359ccb359.png">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#00c853">
 
 <style>
-  body { margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
-  .logo { width: 120px; margin-bottom: 20px; }
-  .login-card { background:#111; padding:30px; border-radius:15px; border:1px solid #333; width:85%; max-width:350px; text-align:center; }
-  input, select { width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; background:#222; color:#fff; box-sizing:border-box; }
-  button { width:100%; padding:15px; margin-top:20px; border-radius:8px; border:none; background:#00c853; color:#000; font-weight:bold; cursor:pointer; font-size:16px; }
-  .footer-link { margin-top:20px; font-size:13px; color:#888; cursor:pointer; text-decoration:underline; }
+  body{ margin:0; font-family: Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
+  .logo{ width:100px; margin-bottom:20px; }
+  .login-card{ background:#111; padding:30px; border-radius:20px; border:1px solid #333; width:85%; max-width:320px; text-align:center; }
+  h1{ font-size:22px; margin-bottom:5px; color:#00c853; }
+  p{ color:#888; font-size:14px; margin-bottom:20px; }
+  input{ width:100%; padding:15px; border-radius:10px; border:1px solid #444; background:#222; color:#fff; font-size:18px; margin-bottom:15px; box-sizing:border-box; text-align:center; }
+  .btn-main{ width:100%; padding:16px; border-radius:10px; border:none; background:#00c853; color:#000; font-weight:bold; font-size:16px; cursor:pointer; }
   
-  /* Banner de Instalación */
-  #installBanner { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #00c853; color: #000; padding: 15px; text-align: center; font-weight: bold; z-index: 999; cursor: pointer; }
+  /* ESTILO IPHONE */
+  #ios-prompt {
+    display: none; position: fixed; bottom: 20px; left: 15px; right: 15px; 
+    background: #1a1a1a; border: 2px solid #00c853; padding: 20px; 
+    border-radius: 20px; z-index: 9999; text-align: center;
+  }
 </style>
 </head>
 <body>
 
-<img src="/file_000000008fd0720eb71af76359ccb359.png" class="logo" alt="Logo">
+  <img src="/file_000000008fd0720eb71af76359ccb359.png" class="logo" onerror="this.src='https://img.icons8.com/ios-filled/100/00c853/taxi.png'">
 
-<div class="login-card" id="cardLogin">
-  <h2 style="margin-top:0;">Bienvenido</h2>
-  <p style="font-size:14px; color:#aaa;">Ingresá tu número para comenzar</p>
-  
-  <input type="tel" id="telefono" placeholder="Número de teléfono">
-  <select id="rol">
-    <option value="pasajero">Soy Pasajero</option>
-    <option value="chofer">Soy Chofer</option>
-  </select>
-  
-  <button onclick="entrar()">INGRESAR</button>
-  <div class="footer-link" onclick="cambiarModo()">¿No tenés cuenta? Registrate</div>
-</div>
+  <div class="login-card">
+    <h1>Smart Traslados</h1>
+    <p>Ingresá tu número y empezá a viajar</p>
+    <input type="tel" id="telefono" placeholder="Tu celular">
+    <button class="btn-main" onclick="ingresar()">ENTRAR</button>
+  </div>
 
-<div id="installBanner" onclick="instalarApp()">
-  🚀 DESCARGAR SMART TRASLADOS APP
-</div>
+  <div id="ios-prompt">
+    <div style="font-size: 14px; margin-bottom:10px;">
+        Para usar como App en iPhone:<br>
+        Tocá <strong>Compartir</strong> <img src="https://img.icons8.com/material-outlined/20/ffffff/external-link.png"/> y luego <strong>"Agregar al Inicio"</strong>.
+    </div>
+    <button onclick="document.getElementById('ios-prompt').style.display='none'" style="background:none; border:none; color:#555; font-size:12px;">Cerrar</button>
+  </div>
 
 <script>
-let modoRegistro = false;
-let deferredPrompt;
-
-// 1. REGISTRO DE SERVICE WORKER PARA PWA
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
+// AUTO-LOGIN: Si ya tiene sesión, lo salteamos
+const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
+if(sesion.telefono){
+    window.location.href = (sesion.tipo === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
 }
 
-// 2. DETECTAR SI LA APP SE PUEDE INSTALAR
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('installBanner').style.display = 'block';
-});
-
-function instalarApp() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                document.getElementById('installBanner').style.display = 'none';
-            }
-        });
-    }
-}
-
-// 3. LÓGICA DE LOGIN / REGISTRO
-function cambiarModo() {
-    modoRegistro = !modoRegistro;
-    const btn = document.querySelector("button");
-    const link = document.querySelector(".footer-link");
-    const titulo = document.querySelector("h2");
-    
-    if(modoRegistro) {
-        titulo.innerText = "Crear Cuenta";
-        btn.innerText = "REGISTRARME";
-        link.innerText = "Ya tengo cuenta, ingresar";
-    } else {
-        titulo.innerText = "Bienvenido";
-        btn.innerText = "INGRESAR";
-        link.innerText = "¿No tenés cuenta? Registrate";
-    }
-}
-
-function entrar() {
+function ingresar() {
     const tel = document.getElementById("telefono").value.trim();
-    const rol = document.getElementById("rol").value;
-    const ruta = modoRegistro ? "/register" : "/login";
+    if (tel.length < 8) return alert("Número incompleto");
 
-    if(!tel) return alert("Ingresá tu teléfono");
+    // Guardamos sesión
+    const nuevaSesion = { telefono: tel, tipo: "pasajero", nombre: "" };
+    localStorage.setItem("sesion", JSON.stringify(nuevaSesion));
 
-    fetch(ruta, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ telefono: tel, rol: rol })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.error) {
-            alert(data.error);
-        } else {
-            // Guardamos los datos recibidos del servidor en la sesión local
-            localStorage.setItem("sesion", JSON.stringify(data));
-            
-            // Redirección según rol
-            if(data.rol === "pasajero") window.location.href = "/pasajero/index.html";
-            if(data.rol === "chofer") window.location.href = "/chofer/index.html";
-        }
-    })
-    .catch(err => alert("Error de conexión"));
+    // Lo mandamos al mapa de una
+    window.location.href = "/pasajero/index.html";
+}
+
+// DETECCIÓN IPHONE
+if (navigator.userAgent.match(/iPhone/i) && !window.navigator.standalone) {
+  document.getElementById('ios-prompt').style.display = 'block';
 }
 </script>
-
 </body>
 </html>
