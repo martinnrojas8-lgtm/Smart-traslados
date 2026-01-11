@@ -1,22 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Smart Traslados – Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
+  .card{ background:#111; padding:20px; border-radius:12px; width:90%; max-width:320px; box-shadow:0 4px 15px rgba(0,255,0,0.1); text-align:center; }
+  input, select, button{ width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; box-sizing:border-box; }
+  input{ background:#222; color:#fff; }
+  button{ background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
+  .btn-reg{ background:#333; color:#aaa; font-size:12px; margin-top:15px; }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="pantallaLogin" class="card">
+  <h2>Iniciar Sesión</h2>
+  <input type="tel" id="loginTelefono" placeholder="Tu número de teléfono">
+  <button onclick="login()">ENTRAR</button>
+  <button class="btn-reg" onclick="verRegistro()">No tengo cuenta, registrarme</button>
+</div>
+
+<div id="pantallaRegistro" class="card hidden">
+  <h2>Registro</h2>
+  <input type="tel" id="regTelefono" placeholder="Número de teléfono">
+  <select id="regRol">
+    <option value="pasajero">Soy Pasajero</option>
+    <option value="chofer">Soy Chofer</option>
+  </select>
+  <button onclick="registrar()">CREAR CUENTA</button>
+  <button class="btn-reg" onclick="verLogin()">Ya tengo cuenta, volver</button>
+</div>
+
+<script>
+function verRegistro(){
+  document.getElementById("pantallaLogin").classList.add("hidden");
+  document.getElementById("pantallaRegistro").classList.remove("hidden");
+}
+
+function verLogin(){
+  document.getElementById("pantallaRegistro").classList.add("hidden");
+  document.getElementById("pantallaLogin").classList.remove("hidden");
+}
+
 function login(){
   const telefono = document.getElementById("loginTelefono").value.trim();
-  fetch("/login",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({telefono})
+  if(!telefono) return alert("Ingresa tu número");
+
+  fetch("/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({telefono})
   })
-  .then(r=>r.json())
-  .then(d=>{
-    if(d.error) return alert("Usuario no encontrado");
+  .then(r => r.json())
+  .then(d => {
+    if(d.error) return alert("Usuario no encontrado. Regístrate primero.");
     
-    // GUARDAR Y VERIFICAR
+    // Guardamos la sesión
     localStorage.setItem("sesion", JSON.stringify(d));
     
-    // Esta alerta nos dirá la verdad:
-    alert("Guardado en sesión: " + JSON.stringify(d));
-    
-    if(d.rol === "chofer") location.href = "/chofer/index.html";
-    else if(d.rol === "pasajero") location.href = "/pasajero/index.html";
-    else alert("Rol no reconocido: " + d.rol);
+    // Redirección
+    if(d.rol === "chofer") {
+        window.location.href = "/chofer/index.html";
+    } else if(d.rol === "pasajero") {
+        window.location.href = "/pasajero/index.html";
+    }
+  })
+  .catch(err => alert("Error de conexión"));
+}
+
+function registrar(){
+  const telefono = document.getElementById("regTelefono").value.trim();
+  const rol = document.getElementById("regRol").value;
+  if(!telefono) return alert("Ingresa un número");
+
+  fetch("/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({telefono, rol})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if(d.mensaje === "Ok") {
+        alert("¡Registro exitoso! Ahora inicia sesión.");
+        verLogin();
+    } else {
+        alert("Error al registrar");
+    }
   });
 }
+</script>
+
+</body>
+</html>
