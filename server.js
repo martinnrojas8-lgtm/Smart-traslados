@@ -5,32 +5,41 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-
-// --- MIDDLEWARES ---
 app.use(cors());
 app.use(express.json());
 
-// --- SERVIR ARCHIVOS ESTÁTICOS ---
-// Esto le dice al servidor que busque TODO (incluyendo carpetas admin, chofer, etc) dentro de 'public'
+// --- ESTO ES LO QUE VAMOS A CAMBIAR PARA NO COMETER ERRORES ---
+
+// 1. Intentamos servir archivos desde la carpeta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
+// 2. Por si acaso, también servimos archivos desde la carpeta principal
+app.use(express.static(__dirname));
+// 3. Y por si acaso, también desde dentro de las carpetas de módulos
+app.use(express.static(path.join(__dirname, 'admin')));
+app.use(express.static(path.join(__dirname, 'chofer')));
+app.use(express.static(path.join(__dirname, 'pasajero')));
 
-// --- CONEXIÓN A MONGODB ---
-const mongoURI = process.env.MONGO_URI;
-mongoose.connect(mongoURI)
-    .then(() => console.log('✅ Conexión exitosa a MongoDB Atlas'))
-    .catch(err => {
-        console.error('❌ Error de conexión:', err.message);
-        process.exit(1);
-    });
+// --- CONEXIÓN A MONGO ---
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('✅ Base de datos conectada'))
+    .catch(err => console.log('❌ Error Mongo:', err));
 
-// --- RUTA PRINCIPAL: MOSTRAR TU LOGIN ---
-// Como moviste el login a 'public', esta línea lo encontrará ahí:
+// --- RUTA QUE NO FALLA ---
+// Esta función va a intentar buscar el login en todos los lugares posibles
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    // Primero intenta buscarlo en 'public'
+    res.sendFile(path.join(__dirname, 'public', 'login.html'), (err) => {
+        if (err) {
+            // Si no está en 'public', lo busca en la raíz
+            res.sendFile(path.join(__dirname, 'login.html'), (err2) => {
+                if (err2) {
+                    // Si tampoco está ahí, te avisa qué está viendo el servidor
+                    res.status(404).send("El servidor no encuentra el archivo login.html en ninguna carpeta. Revisa GitHub.");
+                }
+            });
+        }
+    });
 });
 
-// --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Puerto: ${PORT}`));
