@@ -5,8 +5,10 @@
 <title>Control Smart - Saladillo</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<link rel="apple-touch-icon" href="/file_000000008fd0720eb71af76359ccb359.png">
+<link rel="apple-touch-icon" href="/IMG_20260103_204207.png">
+<link rel="icon" href="/IMG_20260103_204207.png">
 <link rel="manifest" href="/manifest-admin.json">
+
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
@@ -18,7 +20,7 @@
   @media(max-width:768px){ .grid{ grid-template-columns: 1fr; } }
   
   .card-admin{ background:#111; border:1px solid #333; border-radius:12px; padding:15px; margin-bottom:15px; }
-  .chofer-row{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #222; }
+  .chofer-row{ display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #222; }
   .chofer-row:last-child{ border:0; }
   
   h3{ color:#00c853; margin-top:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom: 1px solid #333; padding-bottom: 5px; }
@@ -29,18 +31,18 @@
   .status-disponible{ background:rgba(0,200,83,0.2); color:#00c853; }
   .status-ocupado{ background:rgba(255,82,82,0.2); color:#ff5252; }
   
-  button{ padding:8px 12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px; }
+  button{ padding:10px 14px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:11px; }
   .btn-salir{ background:transparent; color:#ff5252; border:1px solid #ff5252; }
+  .btn-activar{ background:#ffb300; color:#000; }
   
   .monitor-viajes{ background:#111; border:1px solid #00c853; border-radius:12px; padding:15px; }
-  .btn-activar{ background:#ffb300; color:#000; margin-top: 5px; }
 </style>
 </head>
 <body>
 
 <header>
   <div style="display:flex; align-items:center; gap:10px;">
-    <img src="/file_000000008fd0720eb71af76359ccb359.png" width="30">
+    <img src="/IMG_20260103_204207.png" width="35" style="border-radius:5px;">
     <h2 style="margin:0; font-size:16px;">Control Smart</h2>
   </div>
   <button class="btn-salir" onclick="cerrarSesion()">SALIR</button>
@@ -56,7 +58,7 @@
         </div>
 
         <div class="monitor-viajes">
-            <h3>Pedidos Hoy</h3>
+            <h3>Pedidos Activos</h3>
             <div id="listaPedidos">
                 <p style="color:#444;">Sin pedidos ahora.</p>
             </div>
@@ -71,13 +73,11 @@
 </div>
 
 <script>
-/* SEGURIDAD */
 function cerrarSesion(){
     localStorage.removeItem("adminAuth");
     location.href = "/";
 }
 
-/* LÓGICA DE ACTUALIZACIÓN */
 function actualizarTodo() {
     // 1. Obtener Choferes en línea
     fetch("/obtener-choferes-activos")
@@ -87,6 +87,10 @@ function actualizarTodo() {
         const divGestion = document.getElementById("gestionCuentas");
         divVivo.innerHTML = "";
         divGestion.innerHTML = "";
+
+        if(choferes.length === 0) {
+            divVivo.innerHTML = "<p style='color:#444;'>No hay choferes conectados.</p>";
+        }
 
         choferes.forEach(c => {
             // Fila para el Monitor
@@ -98,11 +102,11 @@ function actualizarTodo() {
             `;
             divVivo.appendChild(row);
 
-            // Fila para la Gestión (Activar 24hs)
+            // Fila para la Gestión
             const cardG = document.createElement("div");
             cardG.className = "chofer-row";
             cardG.innerHTML = `
-                <div><span class="nombre">${c.telefono}</span><span class="tel">Estado: ${c.estado}</span></div>
+                <div><span class="nombre">${c.telefono}</span><span class="tel">Saldo: ${c.viajesGratis || 0} viajes</span></div>
                 <button class="btn-activar" onclick="activarManual('${c.telefono}')">ACTIVAR 24HS</button>
             `;
             divGestion.appendChild(cardG);
@@ -116,10 +120,10 @@ function actualizarTodo() {
         const divP = document.getElementById("listaPedidos");
         if(v && v.activo) {
             divP.innerHTML = `
-                <div style="background:#222; padding:10px; border-radius:8px; border-left:4px solid #00c853;">
+                <div style="background:#222; padding:12px; border-radius:10px; border-left:4px solid #00c853;">
                     <p style="margin:0; font-size:13px;"><b>DE:</b> ${v.origen}</p>
                     <p style="margin:5px 0; font-size:13px;"><b>A:</b> ${v.destino}</p>
-                    <p style="margin:0; color:#00c853; font-weight:bold;">${v.precio}</p>
+                    <p style="margin:0; color:#00c853; font-weight:bold;">PRECIO: ${v.precio}</p>
                 </div>`;
         } else {
             divP.innerHTML = "<p style='color:#444;'>Sin actividad.</p>";
@@ -128,8 +132,8 @@ function actualizarTodo() {
 }
 
 function activarManual(tel) {
-    if(confirm("¿Activar 24hs para el chofer " + tel + "?")) {
-        alert("Activado correctamente.");
+    if(confirm("¿Confirmas activación de 24hs para " + tel + "?")) {
+        alert("Activación enviada.");
     }
 }
 
