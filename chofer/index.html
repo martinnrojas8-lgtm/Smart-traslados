@@ -17,6 +17,7 @@
   .badge-time{ background: #ffb300; color: #000; }
   button{ padding:15px; width:100%; margin-top:10px; border:none; border-radius:10px; background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
   .btn-ocupado{ background: #ff5252; color: #fff; }
+  .btn-cambio{ background:none; border:1px solid #555; color:#888; padding:8px; font-size:11px; margin-bottom:10px; }
   .hidden{ display:none; }
   input.voucher-input { width:100%; padding:15px; margin-top:10px; border-radius:8px; border:2px solid #ffb300; background:#222; color:#fff; font-size:18px; text-align:center; }
 </style>
@@ -24,7 +25,7 @@
 <body>
 
 <header>
-  <div style="width:40px"></div>
+  <button class="btn-cambio" onclick="volverAPasajero()">MODO PASAJERO</button>
   <h2 style="margin:0; font-size:18px;">Smart Chofer</h2>
   <div style="width:40px; text-align:right">👤</div>
 </header>
@@ -63,6 +64,12 @@ function initApp() {
     verificarAcceso();
 }
 
+function volverAPasajero() {
+    sesion.tipo = "pasajero";
+    localStorage.setItem("sesion", JSON.stringify(sesion));
+    window.location.href = "/pasajero/index.html";
+}
+
 function verificarAcceso() {
     const ahora = Date.now();
     if (sesion.viajesGratis > 0 || sesion.activoHasta > ahora) {
@@ -71,7 +78,7 @@ function verificarAcceso() {
         document.getElementById("txtViajes").innerText = "🎁 " + (sesion.viajesGratis || 0) + " viajes";
         initMap();
         setInterval(transmitirUbicacion, 7000);
-        setInterval(chequearViajesNuevos, 5000); // OIDO ACTIVO
+        setInterval(chequearViajesNuevos, 5000);
     } else {
         document.getElementById("pantallaPago").classList.remove("hidden");
     }
