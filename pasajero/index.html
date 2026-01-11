@@ -49,6 +49,10 @@ let map, directionsService, directionsRenderer;
 let marcadoresChoferes = {};
 let valorKM = 300; let valorBase = 500;
 
+// COORDENADAS DE SALADILLO (Centro)
+const SALADILLO_COORD = { lat: -35.6380, lng: -59.7793 };
+const RADIO_MAXIMO_KM = 40;
+
 function initApp() {
     if (!sesion.telefono) return location.href = "/";
     if(sesion.foto) {
@@ -58,21 +62,39 @@ function initApp() {
     }
 
     map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -34.6037, lng: -58.3816 }, zoom: 15, disableDefaultUI: true
+        center: SALADILLO_COORD, 
+        zoom: 14, 
+        disableDefaultUI: true
     });
 
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
+    // Configuración del buscador para que solo mire Saladillo y alrededores
+    const bounds = new google.maps.Circle({ center: SALADILLO_COORD, radius: RADIO_MAXIMO_KM * 1000 }).getBounds();
+    
     const setupAuto = (id) => {
-        const auto = new google.maps.places.Autocomplete(document.getElementById(id));
+        const auto = new google.maps.places.Autocomplete(document.getElementById(id), {
+            bounds: bounds,
+            componentRestrictions: { country: "ar" },
+            fields: ["formatted_address", "geometry"],
+            strictBounds: false // Permite sugerencias cercanas si no hay exactas
+        });
         auto.addListener("place_changed", calcularRuta);
     };
-    setupAuto("origen"); setupAuto("destino");
+    
+    setupAuto("origen"); 
+    setupAuto("destino");
 
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+            
+            // Verificar si el pasajero está dentro del radio de 40km
+            if (calcularDistancia(SALADILLO_COORD, pos) > RADIO_MAXIMO_KM) {
+                alert("Smart Traslados opera únicamente en Saladillo y zona rural (Radio 40km).");
+            }
+
             map.setCenter(pos);
             new google.maps.Geocoder().geocode({location: pos}, (res, stat) => {
                 if(stat === "OK") document.getElementById("origen").value = res[0].formatted_address;
@@ -81,6 +103,18 @@ function initApp() {
     }
 
     setInterval(obtenerChoferesCercanos, 5000);
+}
+
+// Función matemática para calcular distancia entre puntos
+function calcularDistancia(p1, p2) {
+    const R = 6371; // Radio de la tierra en km
+    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 function obtenerChoferesCercanos() {
@@ -131,19 +165,31 @@ function pedirViaje() {
     const origen = document.getElementById("origen").value;
     const destino = document.getElementById("destino").value;
     const precio = document.getElementById("cuadroPrecio").innerText;
+    
     if(!destino) return alert("Ingresá un destino");
 
-    const pedido = {
-        pasajeroTel: sesion.telefono,
-        pasajeroNombre: sesion.nombre || "Pasajero",
-        origen, destino, precio, timestamp: Date.now()
-    };
+    // VALIDACIÓN FINAL DE RADIO ANTES DE PEDIR
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(p => {
+            const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+            if (calcularDistancia(SALADILLO_COORD, pos) > RADIO_MAXIMO_KM) {
+                alert("Estás fuera del área de cobertura de Smart Traslados.");
+                return;
+            }
 
-    fetch("/solicitar-viaje", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(pedido)
-    }).then(() => alert("Buscando chofer..."))
-    .catch(() => alert("Error al conectar con servidor"));
+            const pedido = {
+                pasajeroTel: sesion.telefono,
+                pasajeroNombre: sesion.nombre || "Pasajero",
+                origen, destino, precio, timestamp: Date.now()
+            };
+
+            fetch("/solicitar-viaje", {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(pedido)
+            }).then(() => alert("Buscando chofer..."))
+            .catch(() => alert("Error al conectar con servidor"));
+        });
+    }
 }
 
 function agregarParada() {
@@ -153,7 +199,12 @@ function agregarParada() {
     div.id = id;
     div.innerHTML = `<input type="text" placeholder="Parada" class="input-parada"><button class="btn-del" onclick="document.getElementById('${id}').remove(); calcularRuta();">X</button>`;
     document.getElementById("contenedorParadas").appendChild(div);
-    new google.maps.places.Autocomplete(div.querySelector("input")).addListener("place_changed", calcularRuta);
+    
+    const bounds = new google.maps.Circle({ center: SALADILLO_COORD, radius: RADIO_MAXIMO_KM * 1000 }).getBounds();
+    new google.maps.places.Autocomplete(div.querySelector("input"), {
+        bounds: bounds,
+        componentRestrictions: { country: "ar" }
+    }).addListener("place_changed", calcularRuta);
 }
 
 window.onload = initApp;
