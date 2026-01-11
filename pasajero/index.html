@@ -52,31 +52,35 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeXV1ZmTBpGBIE6MwG8HvIAXziKUPK1d8&libraries=places"></script>
 
 <script>
-let map, directionsService, directionsRenderer;
-let paradas = [];
+/* 1. CHEQUEO DE SEGURIDAD Y PERFIL */
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 
-// Configuración inicial de tarifa (estos valores luego se traen del servidor)
+if (!sesion.telefono) {
+    window.location.href = "/"; // Si no hay sesión, al login
+} else if (!sesion.nombre) {
+    window.location.href = "/pasajero/perfil.html"; // Si no tiene nombre, a completar perfil
+}
+
+/* 2. VARIABLES GLOBALES */
+let map, directionsService, directionsRenderer;
 let valorKM = 300; 
 let valorBase = 500;
 
+/* 3. INICIO DE LA APP */
 function initApp() {
-    if(!sesion.telefono) { location.href="/"; return; }
-    document.getElementById("userInfo").innerText = "Pasajero: " + sesion.telefono;
+    document.getElementById("userInfo").innerText = "Pasajero: " + (sesion.nombre || sesion.telefono);
 
-    // Inicializar Google Maps
     const center = { lat: -34.6037, lng: -58.3816 };
     map = new google.maps.Map(document.getElementById("map"), {
         center: center,
         zoom: 15,
         disableDefaultUI: true,
-        styles: [{backgroundColor: "#222"}] // Podés agregar un estilo oscuro de Google Maps
+        styles: [{backgroundColor: "#222"}]
     });
 
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
-    // Autocompletado de Google
     const setupAutocomplete = (id) => {
         const input = document.getElementById(id);
         const auto = new google.maps.places.Autocomplete(input);
@@ -86,7 +90,6 @@ function initApp() {
     setupAutocomplete("origen");
     setupAutocomplete("destino");
 
-    // Obtener ubicación actual
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
@@ -99,6 +102,7 @@ function initApp() {
     }
 }
 
+/* 4. FUNCIONES DE LÓGICA */
 function agregarParada() {
     const id = "parada-" + Date.now();
     const div = document.createElement("div");
@@ -110,7 +114,6 @@ function agregarParada() {
     `;
     document.getElementById("contenedorParadas").appendChild(div);
     
-    // Autocompletado para la nueva parada
     const input = div.querySelector("input");
     const auto = new google.maps.places.Autocomplete(input);
     auto.addListener("place_changed", calcularRuta);
@@ -127,8 +130,7 @@ function calcularRuta() {
     if(!origen || !destino) return;
 
     const waypoints = [];
-    const inputsParadas = document.querySelectorAll(".input-parada");
-    inputsParadas.forEach(inp => {
+    document.querySelectorAll(".input-parada").forEach(inp => {
         if(inp.value) waypoints.push({ location: inp.value, stopover: true });
     });
 
@@ -140,24 +142,24 @@ function calcularRuta() {
     }, (response, status) => {
         if (status === "OK") {
             directionsRenderer.setDirections(response);
-            let totalDistancia = 0; // en metros
-            const legs = response.routes[0].legs;
-            legs.forEach(leg => { totalDistancia += leg.distance.value; });
+            let totalDistancia = 0;
+            response.routes[0].legs.forEach(leg => { totalDistancia += leg.distance.value; });
 
             const km = totalDistancia / 1000;
             const precioFinal = valorBase + (km * valorKM);
 
             document.getElementById("cuadroPrecio").innerText = "Total: $" + precioFinal.toFixed(2);
-            document.getElementById("infoRuta").innerText = km.toFixed(1) + " km | " + legs[0].duration.text;
+            document.getElementById("infoRuta").innerText = km.toFixed(1) + " km | " + response.routes[0].legs[0].duration.text;
         }
     });
 }
 
 function pedirViaje() {
     alert("Enviando solicitud al chofer...");
-    // Aquí mandaremos los datos a MongoDB en el siguiente paso
+    // Próximo paso: conectar con server.js
 }
 
+// Arrancar
 initApp();
 </script>
 </body>
