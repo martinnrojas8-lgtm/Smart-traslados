@@ -2,68 +2,90 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Smart Traslados - Inicio</title>
+<title>Smart Traslados</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link rel="apple-touch-icon" href="https://tu-dominio.com/file_000000008fd0720eb71af76359ccb359.png">
+<link rel="apple-touch-icon" href="/file_000000008fd0720eb71af76359ccb359.png">
 <link rel="manifest" href="/manifest.json">
 
 <style>
-  body{ margin:0; font-family: Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
-  .logo{ width:100px; margin-bottom:20px; }
-  .login-card{ background:#111; padding:30px; border-radius:20px; border:1px solid #333; width:85%; max-width:320px; text-align:center; }
-  h1{ font-size:22px; margin-bottom:5px; color:#00c853; }
-  p{ color:#888; font-size:14px; margin-bottom:20px; }
-  input{ width:100%; padding:15px; border-radius:10px; border:1px solid #444; background:#222; color:#fff; font-size:18px; margin-bottom:15px; box-sizing:border-box; text-align:center; }
-  .btn-main{ width:100%; padding:16px; border-radius:10px; border:none; background:#00c853; color:#000; font-weight:bold; font-size:16px; cursor:pointer; }
+  body { margin:0; font-family: Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; }
+  .logo { width:120px; margin-bottom:20px; }
+  .login-card { background:#111; padding:25px; border-radius:20px; border:1px solid #333; width:85%; max-width:350px; text-align:center; }
+  h1 { font-size:24px; color:#00c853; margin-bottom:20px; }
   
-  /* ESTILO IPHONE */
+  input { width:100%; padding:18px; border-radius:12px; border:1px solid #444; background:#222; color:#fff; font-size:20px; margin-bottom:20px; box-sizing:border-box; text-align:center; }
+  
+  .btn-choice { width:100%; padding:20px; border-radius:12px; border:none; font-weight:bold; font-size:18px; cursor:pointer; margin-bottom:15px; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .btn-pasajero { background:#00c853; color:#000; }
+  .btn-chofer { background:#333; color:#fff; border: 1px solid #555; }
+  
+  /* Cartel de ayuda para iPhone */
   #ios-prompt {
     display: none; position: fixed; bottom: 20px; left: 15px; right: 15px; 
-    background: #1a1a1a; border: 2px solid #00c853; padding: 20px; 
-    border-radius: 20px; z-index: 9999; text-align: center;
+    background: #1a1a1a; border: 2px solid #00c853; padding: 20px; border-radius: 20px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 999;
   }
 </style>
 </head>
 <body>
 
-  <img src="/file_000000008fd0720eb71af76359ccb359.png" class="logo" onerror="this.src='https://img.icons8.com/ios-filled/100/00c853/taxi.png'">
+  <img src="/file_000000008fd0720eb71af76359ccb359.png" class="logo">
 
   <div class="login-card">
-    <h1>Smart Traslados</h1>
-    <p>Ingresá tu número y empezá a viajar</p>
-    <input type="tel" id="telefono" placeholder="Tu celular">
-    <button class="btn-main" onclick="ingresar()">ENTRAR</button>
+    <h1>Bienvenido</h1>
+    <input type="tel" id="telefono" placeholder="Tu número de celular">
+    
+    <button class="btn-choice btn-pasajero" onclick="ingresar('pasajero')">
+        <span>📍</span> BUSCAR TRASLADO
+    </button>
+    
+    <button class="btn-choice btn-chofer" onclick="ingresar('chofer')">
+        <span>🚖</span> SOY CHOFER
+    </button>
   </div>
 
   <div id="ios-prompt">
-    <div style="font-size: 14px; margin-bottom:10px;">
-        Para usar como App en iPhone:<br>
-        Tocá <strong>Compartir</strong> <img src="https://img.icons8.com/material-outlined/20/ffffff/external-link.png"/> y luego <strong>"Agregar al Inicio"</strong>.
+    <div style="font-size: 14px; color:#fff; line-height: 1.4;">
+        <strong>Para usar como App:</strong><br>
+        Tocá el botón compartir <img src="https://img.icons8.com/material-outlined/20/ffffff/external-link.png" style="vertical-align:middle;"/> y luego elegí <strong>"Agregar al Inicio"</strong>.
     </div>
-    <button onclick="document.getElementById('ios-prompt').style.display='none'" style="background:none; border:none; color:#555; font-size:12px;">Cerrar</button>
   </div>
 
 <script>
-// AUTO-LOGIN: Si ya tiene sesión, lo salteamos
+// 1. AUTO-LOGIN: Si ya eligió una vez, lo mandamos directo a su mapa
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
-if(sesion.telefono){
+if(sesion.telefono && sesion.tipo){
     window.location.href = (sesion.tipo === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
 }
 
-function ingresar() {
+function ingresar(tipoElegido) {
     const tel = document.getElementById("telefono").value.trim();
-    if (tel.length < 8) return alert("Número incompleto");
+    if (tel.length < 8) {
+        alert("Por favor, ingresá un número de teléfono válido.");
+        return;
+    }
 
-    // Guardamos sesión
-    const nuevaSesion = { telefono: tel, tipo: "pasajero", nombre: "" };
-    localStorage.setItem("sesion", JSON.stringify(nuevaSesion));
+    // Guardamos la sesión con el tipo que eligió
+    const datosSesion = { 
+        telefono: tel, 
+        tipo: tipoElegido, 
+        nombre: sesion.nombre || "" 
+    };
+    localStorage.setItem("sesion", JSON.stringify(datosSesion));
 
-    // Lo mandamos al mapa de una
-    window.location.href = "/pasajero/index.html";
+    // Redirección inmediata según el botón
+    if(tipoElegido === 'chofer') {
+        window.location.href = "/chofer/index.html";
+    } else {
+        window.location.href = "/pasajero/index.html";
+    }
 }
 
-// DETECCIÓN IPHONE
-if (navigator.userAgent.match(/iPhone/i) && !window.navigator.standalone) {
+// 2. DETECCIÓN IPHONE: Muestra el cartel solo si es iPhone y no está instalada
+const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+const isStandalone = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+if (isIos() && !isStandalone()) {
   document.getElementById('ios-prompt').style.display = 'block';
 }
 </script>
