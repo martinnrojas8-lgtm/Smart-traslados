@@ -1,36 +1,39 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // Nuevo: Necesario para manejar carpetas
 require('dotenv').config();
 
 const app = express();
 
 // --- MIDDLEWARES ---
 app.use(cors());
-app.use(express.json()); // Permite que tu app entienda JSON
+app.use(express.json());
+
+// --- SERVIR ARCHIVOS DEL FRONTEND ---
+// Esto le dice al servidor que busque tu HTML, CSS y JS en la carpeta 'public'
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONEXIÓN A MONGODB ---
-// Render usará la variable MONGO_URI que configures en su panel
 const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ Conexión exitosa a MongoDB Atlas'))
     .catch(err => {
         console.error('❌ Error de conexión a MongoDB:', err.message);
-        process.exit(1); // Detiene el servidor si no hay conexión
+        process.exit(1);
     });
 
-// --- RUTAS (Ejemplos básicos, ajusta según tus módulos) ---
-app.get('/', (req, res) => {
-    res.send('Servidor de Smart-Traslados funcionando correctamente 🚀');
+// --- RUTAS DE LA API ---
+// (Aquí puedes agregar tus rutas de usuarios, traslados, etc., más adelante)
+
+// --- RUTA PARA MOSTRAR LA APP ---
+// En lugar de enviar un texto, enviamos tu archivo index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Aquí irían tus rutas de módulos, por ejemplo:
-// app.use('/api/usuarios', require('./routes/usuarios'));
-// app.use('/api/traslados', require('./routes/traslados'));
-
 // --- CONFIGURACIÓN DEL PUERTO ---
-// Render asigna un puerto dinámico, por eso usamos process.env.PORT
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
