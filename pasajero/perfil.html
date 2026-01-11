@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Completar Perfil - Smart Traslados</title>
+<title>Mi Perfil - Smart Traslados</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
@@ -13,29 +13,39 @@
   #imgPreview{ width:100%; height:100%; object-fit:cover; }
   input[type="file"]{ display:none; }
   .label-file{ background:#333; padding:8px; border-radius:5px; font-size:12px; cursor:pointer; display:inline-block; margin-top:10px; }
+  .btn-volver{ background:transparent; color:#888; margin-top:10px; font-size:12px; }
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h2>Tu Perfil</h2>
-  <p style="font-size:14px; color:#aaa;">Casi listo, necesitamos tu nombre y una foto para continuar.</p>
-  
+  <h2 id="titulo">Tu Perfil</h2>
   <div class="foto-preview">
-    <img id="imgPreview" src="" alt="">
+    <img id="imgPreview" src="">
     <span id="placeholderTxt">Sin foto</span>
   </div>
   
-  <label class="label-file" for="fotoInput">ELEGIR FOTO</label>
+  <label class="label-file" for="fotoInput">CAMBIAR FOTO</label>
   <input type="file" id="fotoInput" accept="image/*" onchange="previewImage(event)">
 
   <input type="text" id="nombreInput" placeholder="Nombre y Apellido">
   
-  <button onclick="guardarPerfil()">GUARDAR Y CONTINUAR</button>
+  <button onclick="guardarPerfil()">GUARDAR CAMBIOS</button>
+  <button class="btn-volver" onclick="window.location.href='index.html'">VOLVER AL MAPA</button>
 </div>
 
 <script>
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
+
+// CARGAR DATOS SI YA EXISTEN
+if(sesion.nombre) {
+    document.getElementById("nombreInput").value = sesion.nombre;
+    document.getElementById("titulo").innerText = "Editar Perfil";
+}
+if(sesion.foto) {
+    document.getElementById("imgPreview").src = sesion.foto;
+    document.getElementById("placeholderTxt").style.display = 'none';
+}
 
 function previewImage(event) {
     const reader = new FileReader();
@@ -51,32 +61,23 @@ function guardarPerfil() {
     const nombre = document.getElementById("nombreInput").value.trim();
     const foto = document.getElementById("imgPreview").src;
 
-    if(!nombre) return alert("El nombre es obligatorio");
-    if(!foto || foto.includes("window.location")) return alert("La foto es obligatoria");
+    if(!nombre || !foto) return alert("Nombre y foto son obligatorios");
 
-    // Enviamos al servidor
     fetch("/actualizar-perfil", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            telefono: sesion.telefono,
-            nombre: nombre,
-            foto: foto
-        })
+        body: JSON.stringify({ telefono: sesion.telefono, nombre, foto })
     })
     .then(r => r.json())
     .then(d => {
         if(d.mensaje === "Ok") {
-            // Actualizamos la sesión local
             sesion.nombre = nombre;
             sesion.foto = foto;
             localStorage.setItem("sesion", JSON.stringify(sesion));
-            
-            alert("¡Perfil completado!");
-            window.location.href = "/pasajero/index.html";
+            alert("Perfil actualizado");
+            window.location.href = "index.html";
         }
-    })
-    .catch(err => alert("Error al guardar"));
+    });
 }
 </script>
 </body>
