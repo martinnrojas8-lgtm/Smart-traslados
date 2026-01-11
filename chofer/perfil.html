@@ -2,69 +2,74 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Perfil Chofer - Smart Traslados</title>
+<title>Mi Perfil Chofer - Smart Traslados</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; padding:20px; }
-  .container{ max-width:400px; margin:auto; }
-  .card{ background:#111; padding:20px; border-radius:15px; border:1px solid #333; text-align:center; }
+  .card{ background:#111; padding:20px; border-radius:15px; border:1px solid #333; text-align:center; max-width:400px; margin:auto; }
   input{ width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; background:#222; color:#fff; box-sizing:border-box; }
   button{ width:100%; padding:15px; margin-top:20px; border-radius:8px; border:none; background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
-  
-  /* Estilo para las cargas de fotos */
   .grid-fotos{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px; }
   .foto-box{ background:#222; border:1px dashed #444; padding:10px; border-radius:8px; font-size:11px; }
   .preview-img{ width:100%; height:80px; object-fit:cover; border-radius:5px; margin-top:5px; display:none; }
   label{ display:block; cursor:pointer; color:#00c853; font-weight:bold; }
   input[type="file"]{ display:none; }
+  .btn-volver{ background:transparent; color:#888; font-size:12px; margin-top:10px; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="card">
-    <h2>Perfil del Chofer</h2>
-    <p style="color:#aaa; font-size:13px;">Completá tus datos y cargá la documentación solicitada.</p>
+<div class="card">
+  <h2 id="titulo">Perfil Chofer</h2>
+  <input type="text" id="nombre" placeholder="Nombre y Apellido">
+  <input type="text" id="autoModelo" placeholder="Modelo del Vehículo">
+  <input type="text" id="autoPatente" placeholder="Patente / Dominio">
+  <input type="text" id="autoColor" placeholder="Color del Vehículo">
 
-    <input type="text" id="nombre" placeholder="Nombre y Apellido">
-    <input type="text" id="autoModelo" placeholder="Modelo del Vehículo (Ej: Fiat Cronos)">
-    <input type="text" id="autoPatente" placeholder="Patente / Dominio">
-    <input type="text" id="autoColor" placeholder="Color del Vehículo">
-
-    <div class="grid-fotos">
-      <div class="foto-box">
-        <label for="fPerfil">Foto Perfil</label>
-        <input type="file" id="fPerfil" accept="image/*" onchange="previsualizar(this, 'pPerfil')">
-        <img id="pPerfil" class="preview-img">
-      </div>
-      <div class="foto-box">
-        <label for="fCarnet">Carnet Conducir</label>
-        <input type="file" id="fCarnet" accept="image/*" onchange="previsualizar(this, 'pCarnet')">
-        <img id="pCarnet" class="preview-img">
-      </div>
-      <div class="foto-box">
-        <label for="fSeguro">Póliza Seguro</label>
-        <input type="file" id="fSeguro" accept="image/*" onchange="previsualizar(this, 'pSeguro')">
-        <img id="pSeguro" class="preview-img">
-      </div>
-      <div class="foto-box">
-        <label for="fTarjeta">Tarjeta Vehículo</label>
-        <input type="file" id="fTarjeta" accept="image/*" onchange="previsualizar(this, 'pTarjeta')">
-        <img id="pTarjeta" class="preview-img">
-      </div>
+  <div class="grid-fotos">
+    <div class="foto-box">
+      <label for="fPerfil">Foto Perfil</label>
+      <input type="file" id="fPerfil" accept="image/*" onchange="pre(this, 'pPerfil')">
+      <img id="pPerfil" class="preview-img">
     </div>
-
-    <button onclick="guardarPerfilChofer()">ENVIAR PARA REVISIÓN</button>
+    <div class="foto-box">
+      <label for="fCarnet">Carnet</label>
+      <input type="file" id="fCarnet" accept="image/*" onchange="pre(this, 'pCarnet')">
+      <img id="pCarnet" class="preview-img">
+    </div>
+    <div class="foto-box">
+      <label for="fSeguro">Seguro</label>
+      <input type="file" id="fSeguro" accept="image/*" onchange="pre(this, 'pSeguro')">
+      <img id="pSeguro" class="preview-img">
+    </div>
+    <div class="foto-box">
+      <label for="fTarjeta">Tarjeta Auto</label>
+      <input type="file" id="fTarjeta" accept="image/*" onchange="pre(this, 'pTarjeta')">
+      <img id="pTarjeta" class="preview-img">
+    </div>
   </div>
+
+  <button onclick="guardar()">GUARDAR CAMBIOS</button>
+  <button class="btn-volver" onclick="window.location.href='index.html'">VOLVER AL MAPA</button>
 </div>
 
 <script>
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 
-function previsualizar(input, idImg) {
+// CARGAR DATOS PREVIOS (Aquí el truco: usamos los datos que ya tenemos en local)
+if(sesion.nombre) {
+    document.getElementById("nombre").value = sesion.nombre;
+    document.getElementById("autoModelo").value = sesion.autoModelo || "";
+    document.getElementById("autoPatente").value = sesion.autoPatente || "";
+    document.getElementById("autoColor").value = sesion.autoColor || "";
+    // Nota: Las fotos Base64 son muy grandes para el localStorage, por eso 
+    // lo ideal es cargarlas desde la base de datos o dejar que las resuba.
+}
+
+function pre(input, idImg) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = e => { 
             const img = document.getElementById(idImg);
             img.src = e.target.result;
             img.style.display = 'block';
@@ -73,23 +78,18 @@ function previsualizar(input, idImg) {
     }
 }
 
-function guardarPerfilChofer() {
+function guardar() {
     const datos = {
         telefono: sesion.telefono,
-        nombre: document.getElementById("nombre").value.trim(),
-        modelo: document.getElementById("autoModelo").value.trim(),
-        patente: document.getElementById("autoPatente").value.trim(),
-        color: document.getElementById("autoColor").value.trim(),
+        nombre: document.getElementById("nombre").value,
+        modelo: document.getElementById("autoModelo").value,
+        patente: document.getElementById("autoPatente").value,
+        color: document.getElementById("autoColor").value,
         fotoPerfil: document.getElementById("pPerfil").src,
         fotoCarnet: document.getElementById("pCarnet").src,
         fotoSeguro: document.getElementById("pSeguro").src,
         fotoTarjeta: document.getElementById("pTarjeta").src
     };
-
-    // Validar que nada esté vacío
-    if(Object.values(datos).some(x => x === "" || x === null)) {
-        return alert("Por favor, completa todos los campos y sube las 4 fotos.");
-    }
 
     fetch("/actualizar-perfil-chofer", {
         method: "POST",
@@ -99,14 +99,12 @@ function guardarPerfilChofer() {
     .then(r => r.json())
     .then(d => {
         if(d.mensaje === "Ok") {
-            // Actualizamos la sesión local con el nombre para que el filtro lo deje pasar
-            sesion.nombre = datos.nombre;
+            Object.assign(sesion, { nombre: datos.nombre, autoModelo: datos.modelo, autoPatente: datos.patente, autoColor: datos.color });
             localStorage.setItem("sesion", JSON.stringify(sesion));
-            alert("¡Perfil enviado con éxito!");
-            window.location.href = "/chofer/index.html";
+            alert("Perfil actualizado correctamente");
+            window.location.href = "index.html";
         }
-    })
-    .catch(err => alert("Error al conectar con el servidor"));
+    });
 }
 </script>
 </body>
