@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Traslados – Panel Propietario</title>
 
+<link rel="manifest" href="/admin/manifest.json">
+
 <style>
 body{
     margin:0;
@@ -95,7 +97,6 @@ th, td{
     <button onclick="mostrar('config')">Configuración</button>
 </div>
 
-<!-- INICIO -->
 <div id="inicio" class="pantalla activa">
     <div class="card">
         <h3>Resumen general</h3>
@@ -107,7 +108,6 @@ th, td{
     </div>
 </div>
 
-<!-- CONDUCTORES -->
 <div id="conductores" class="pantalla">
     <div class="card">
         <h3>Conductores</h3>
@@ -122,7 +122,6 @@ th, td{
     </div>
 </div>
 
-<!-- PASAJEROS -->
 <div id="pasajeros" class="pantalla">
     <div class="card">
         <h3>Pasajeros</h3>
@@ -136,7 +135,6 @@ th, td{
     </div>
 </div>
 
-<!-- VIAJES -->
 <div id="viajes" class="pantalla">
     <div class="card">
         <h3>Historial de viajes</h3>
@@ -151,7 +149,6 @@ th, td{
     </div>
 </div>
 
-<!-- PAGOS / HISTORIAL -->
 <div id="pagos" class="pantalla">
     <div class="card">
         <h3>Historial de cobros por choferes</h3>
@@ -171,7 +168,6 @@ th, td{
     </div>
 </div>
 
-<!-- TARIFAS -->
 <div id="tarifas" class="pantalla">
     <div class="card">
         <h3>Tarifas</h3>
@@ -185,7 +181,6 @@ th, td{
     </div>
 </div>
 
-<!-- MENSAJES -->
 <div id="mensajes" class="pantalla">
     <div class="card">
         <h3>Enviar mensaje</h3>
@@ -198,7 +193,6 @@ th, td{
     </div>
 </div>
 
-<!-- CONFIG -->
 <div id="config" class="pantalla">
     <div class="card">
         <h3>Configuración general</h3>
@@ -228,10 +222,10 @@ let tarifas = JSON.parse(localStorage.getItem('tarifas')) || {precioBase:500, pr
 let pagosBancarios = JSON.parse(localStorage.getItem('pagosBancarios')) || {};
 let cuentaBancaria = localStorage.getItem('cuentaBancaria') || '';
 
-document.getElementById('precioBase').value = tarifas.precioBase;
-document.getElementById('precioKm').value = tarifas.precioKm;
-document.getElementById('montoFijo').value = tarifas.montoFijo;
-document.getElementById('cuentaBancaria').value = cuentaBancaria;
+if(document.getElementById('precioBase')) document.getElementById('precioBase').value = tarifas.precioBase;
+if(document.getElementById('precioKm')) document.getElementById('precioKm').value = tarifas.precioKm;
+if(document.getElementById('montoFijo')) document.getElementById('montoFijo').value = tarifas.montoFijo;
+if(document.getElementById('cuentaBancaria')) document.getElementById('cuentaBancaria').value = cuentaBancaria;
 
 function guardarTarifas(){
     tarifas.precioBase = parseInt(document.getElementById('precioBase').value) || 500;
@@ -253,9 +247,10 @@ function mostrarCuenta(){
 
 function cargarConductores(){
     let tabla = document.getElementById('tablaConductores');
+    if(!tabla) return;
     tabla.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Acción</th></tr>`;
     let filtroChofer = document.getElementById('filtroChofer');
-    filtroChofer.innerHTML = `<option value="">Todos</option>`;
+    if(filtroChofer) filtroChofer.innerHTML = `<option value="">Todos</option>`;
     conductores.forEach(c=>{
         tabla.innerHTML += `
         <tr>
@@ -264,7 +259,7 @@ function cargarConductores(){
             <td class="${c.activo?'estado-ok':'estado-off'}">${c.activo?'Activo':'Bloqueado'}</td>
             <td><button class="btn btn-del" onclick="toggle('${c.telefono}')">Cambiar</button></td>
         </tr>`;
-        filtroChofer.innerHTML += `<option value="${c.nombre}">${c.nombre}</option>`;
+        if(filtroChofer) filtroChofer.innerHTML += `<option value="${c.nombre}">${c.nombre}</option>`;
     });
 }
 
@@ -277,19 +272,9 @@ function toggle(tel){
     cargarConductores();
 }
 
-function registrarPagoBancario(telefonoChofer, monto){
-    pagosBancarios[telefonoChofer] = (pagosBancarios[telefonoChofer] || 0) + monto;
-    localStorage.setItem('pagosBancarios', JSON.stringify(pagosBancarios));
-    conductores = conductores.map(c=>{
-        if(c.telefono===telefonoChofer) c.activo = true;
-        return c;
-    });
-    localStorage.setItem('conductores', JSON.stringify(conductores));
-    cargarTodo();
-}
-
 function cargarPagos(){
     let tabla = document.getElementById('tablaPagos');
+    if(!tabla) return;
     let filtroChofer = document.getElementById('filtroChofer').value;
     let filtroFecha = document.getElementById('filtroFecha').value;
     tabla.innerHTML = `<tr><th>Chofer</th><th>Monto total</th><th>Saldo bancario recibido</th></tr>`;
@@ -307,16 +292,16 @@ function cargarPagos(){
 }
 
 function cargarTodo(){
-    document.getElementById('cActivos').innerText = conductores.filter(c=>c.activo).length;
-    document.getElementById('pTotal').innerText = pasajeros.length;
-    document.getElementById('vHoy').innerText = viajes.length;
-    document.getElementById('gHoy').innerText = viajes.reduce((a,v)=>a+v.monto*0.15,0);
+    if(document.getElementById('cActivos')) document.getElementById('cActivos').innerText = conductores.filter(c=>c.activo).length;
+    if(document.getElementById('pTotal')) document.getElementById('pTotal').innerText = pasajeros.length;
+    if(document.getElementById('vHoy')) document.getElementById('vHoy').innerText = viajes.length;
+    if(document.getElementById('gHoy')) document.getElementById('gHoy').innerText = viajes.reduce((a,v)=>a+v.monto*0.15,0);
 
     let hoy = new Date().toISOString().slice(0,10);
     let totalMontoHoy = viajes
         .filter(v=>v.fecha.startsWith(hoy))
         .reduce((a,v)=>a+tarifas.montoFijo,0);
-    document.getElementById('montoHoy').innerText = totalMontoHoy;
+    if(document.getElementById('montoHoy')) document.getElementById('montoHoy').innerText = totalMontoHoy;
 
     cargarConductores();
     cargarPagos();
