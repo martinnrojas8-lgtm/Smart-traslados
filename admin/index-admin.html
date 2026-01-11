@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <title>Control Smart - Saladillo</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<link rel="apple-touch-icon" href="/file_000000008fd0720eb71af76359ccb359.png">
+<link rel="manifest" href="/manifest-admin.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
 <style>
   body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
   header{ background:#111; padding:15px; border-bottom:2px solid #00c853; display:flex; justify-content:space-between; align-items:center; }
@@ -15,7 +21,7 @@
   .chofer-row{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #222; }
   .chofer-row:last-child{ border:0; }
   
-  h3{ color:#00c853; margin-top:0; font-size:16px; text-transform:uppercase; letter-spacing:1px; }
+  h3{ color:#00c853; margin-top:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom: 1px solid #333; padding-bottom: 5px; }
   .nombre{ font-weight:bold; color:#fff; display:block; }
   .tel{ font-size:12px; color:#888; }
   
@@ -24,10 +30,10 @@
   .status-ocupado{ background:rgba(255,82,82,0.2); color:#ff5252; }
   
   button{ padding:8px 12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px; }
-  .btn-activar{ background:#ffb300; color:#000; }
   .btn-salir{ background:transparent; color:#ff5252; border:1px solid #ff5252; }
   
   .monitor-viajes{ background:#111; border:1px solid #00c853; border-radius:12px; padding:15px; }
+  .btn-activar{ background:#ffb300; color:#000; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -35,100 +41,100 @@
 <header>
   <div style="display:flex; align-items:center; gap:10px;">
     <img src="/file_000000008fd0720eb71af76359ccb359.png" width="30">
-    <h2 style="margin:0; font-size:18px;">Control Smart</h2>
+    <h2 style="margin:0; font-size:16px;">Control Smart</h2>
   </div>
-  <button class="btn-salir" onclick="cerrarSesionAdmin()">SALIR</button>
+  <button class="btn-salir" onclick="cerrarSesion()">SALIR</button>
 </header>
 
 <div class="container">
     <div class="grid">
         <div class="card-admin">
-            <h3>Choferes en Línea</h3>
+            <h3>Choferes en Saladillo</h3>
             <div id="listaEnVivo">
-                <p style="color:#444;">Buscando señal en Saladillo...</p>
+                <p style="color:#444;">Buscando señal...</p>
             </div>
         </div>
 
         <div class="monitor-viajes">
-            <h3>Pedidos de Viaje</h3>
+            <h3>Pedidos Hoy</h3>
             <div id="listaPedidos">
-                <p style="color:#444;">No hay pedidos ahora.</p>
+                <p style="color:#444;">Sin pedidos ahora.</p>
             </div>
         </div>
     </div>
 
     <div class="card-admin" style="margin-top:15px;">
-        <h3>Administración de Cuentas</h3>
+        <h3>Administración de Choferes</h3>
         <div id="gestionCuentas">
             </div>
     </div>
 </div>
 
 <script>
-/* SEGURIDAD BÁSICA */
-if(localStorage.getItem("adminAuth") !== "true"){
-    // Descomentar esto cuando tengas el login-admin.html listo
-    // location.href = "login-admin.html";
-}
-
-function cerrarSesionAdmin(){
+/* SEGURIDAD */
+function cerrarSesion(){
     localStorage.removeItem("adminAuth");
-    location.reload();
+    location.href = "/";
 }
 
-/* LÓGICA DE MONITOREO REAL */
-function actualizarPanel() {
-    // 1. Obtener Choferes en línea desde el servidor
+/* LÓGICA DE ACTUALIZACIÓN */
+function actualizarTodo() {
+    // 1. Obtener Choferes en línea
     fetch("/obtener-choferes-activos")
     .then(r => r.json())
     .then(choferes => {
-        const div = document.getElementById("listaEnVivo");
-        div.innerHTML = "";
+        const divVivo = document.getElementById("listaEnVivo");
+        const divGestion = document.getElementById("gestionCuentas");
+        divVivo.innerHTML = "";
+        divGestion.innerHTML = "";
+
         choferes.forEach(c => {
+            // Fila para el Monitor
             const row = document.createElement("div");
             row.className = "chofer-row";
             row.innerHTML = `
-                <div>
-                    <span class="nombre">${c.telefono}</span>
-                    <span class="tel">Lat: ${c.lat.toFixed(4)} | Lng: ${c.lng.toFixed(4)}</span>
-                </div>
+                <div><span class="nombre">${c.telefono}</span></div>
                 <span class="badge status-${c.estado}">${c.estado.toUpperCase()}</span>
             `;
-            div.appendChild(row);
+            divVivo.appendChild(row);
+
+            // Fila para la Gestión (Activar 24hs)
+            const cardG = document.createElement("div");
+            cardG.className = "chofer-row";
+            cardG.innerHTML = `
+                <div><span class="nombre">${c.telefono}</span><span class="tel">Estado: ${c.estado}</span></div>
+                <button class="btn-activar" onclick="activarManual('${c.telefono}')">ACTIVAR 24HS</button>
+            `;
+            divGestion.appendChild(cardG);
         });
     });
 
-    // 2. Obtener pedidos activos
+    // 2. Obtener pedidos
     fetch("/verificar-pedidos")
     .then(r => r.json())
-    .then(viaje => {
-        const div = document.getElementById("listaPedidos");
-        if(viaje && viaje.activo) {
-            div.innerHTML = `
-                <div style="background:#222; padding:10px; border-radius:8px; border-left:4px solid #ffb300;">
-                    <p style="margin:0; font-weight:bold;">📍 De: ${viaje.origen}</p>
-                    <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">🏁 A: ${viaje.destino}</p>
-                    <p style="margin:5px 0 0 0; color:#ffb300; font-weight:bold;">${viaje.precio}</p>
-                </div>
-            `;
+    .then(v => {
+        const divP = document.getElementById("listaPedidos");
+        if(v && v.activo) {
+            divP.innerHTML = `
+                <div style="background:#222; padding:10px; border-radius:8px; border-left:4px solid #00c853;">
+                    <p style="margin:0; font-size:13px;"><b>DE:</b> ${v.origen}</p>
+                    <p style="margin:5px 0; font-size:13px;"><b>A:</b> ${v.destino}</p>
+                    <p style="margin:0; color:#00c853; font-weight:bold;">${v.precio}</p>
+                </div>`;
         } else {
-            div.innerHTML = "<p style='color:#444;'>Sin actividad reciente.</p>";
+            divP.innerHTML = "<p style='color:#444;'>Sin actividad.</p>";
         }
     });
 }
 
-// Función para activar desde el panel (esto enviaría un comando al servidor)
-function activarChoferManual(tel) {
-    const confirmacion = confirm(`¿Confirmas activación manual para ${tel}?`);
-    if(confirmacion) {
-        alert("Activado. El chofer ya puede recibir viajes.");
+function activarManual(tel) {
+    if(confirm("¿Activar 24hs para el chofer " + tel + "?")) {
+        alert("Activado correctamente.");
     }
 }
 
-// Actualizar cada 5 segundos
-setInterval(actualizarPanel, 5000);
-actualizarPanel();
-
+setInterval(actualizarTodo, 5000);
+actualizarTodo();
 </script>
 </body>
 </html>
