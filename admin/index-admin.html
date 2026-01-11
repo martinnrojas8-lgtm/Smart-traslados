@@ -2,122 +2,133 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Smart Admin - Panel de Control</title>
+<title>Control Smart - Saladillo</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
   header{ background:#111; padding:15px; border-bottom:2px solid #00c853; display:flex; justify-content:space-between; align-items:center; }
-  .container{ padding:20px; }
-  .card-chofer{ background:#111; border:1px solid #333; border-radius:10px; padding:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; }
-  .info h4{ margin:0 0 5px 0; color:#00c853; }
-  .info p{ margin:2px 0; font-size:13px; color:#ccc; }
-  .badge{ padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; }
-  .status-active{ background:#00c853; color:#000; }
-  .status-inactive{ background:#ff5252; color:#fff; }
+  .container{ padding:15px; }
+  .grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  @media(max-width:768px){ .grid{ grid-template-columns: 1fr; } }
   
-  .acciones{ display:flex; gap:10px; }
-  button{ padding:8px 12px; border:none; border-radius:5px; font-weight:bold; cursor:pointer; }
+  .card-admin{ background:#111; border:1px solid #333; border-radius:12px; padding:15px; margin-bottom:15px; }
+  .chofer-row{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #222; }
+  .chofer-row:last-child{ border:0; }
+  
+  h3{ color:#00c853; margin-top:0; font-size:16px; text-transform:uppercase; letter-spacing:1px; }
+  .nombre{ font-weight:bold; color:#fff; display:block; }
+  .tel{ font-size:12px; color:#888; }
+  
+  .badge{ padding:4px 8px; border-radius:5px; font-size:10px; font-weight:bold; }
+  .status-disponible{ background:rgba(0,200,83,0.2); color:#00c853; }
+  .status-ocupado{ background:rgba(255,82,82,0.2); color:#ff5252; }
+  
+  button{ padding:8px 12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px; }
   .btn-activar{ background:#ffb300; color:#000; }
-  .btn-ver{ background:#333; color:#fff; }
   .btn-salir{ background:transparent; color:#ff5252; border:1px solid #ff5252; }
+  
+  .monitor-viajes{ background:#111; border:1px solid #00c853; border-radius:12px; padding:15px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h2 style="margin:0; font-size:18px;">Smart Admin 🚀</h2>
-  <button class="btn-salir" onclick="cerrarSesionAdmin()">CERRAR SESIÓN</button>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <img src="/file_000000008fd0720eb71af76359ccb359.png" width="30">
+    <h2 style="margin:0; font-size:18px;">Control Smart</h2>
+  </div>
+  <button class="btn-salir" onclick="cerrarSesionAdmin()">SALIR</button>
 </header>
 
 <div class="container">
-  <h3>Gestión de Choferes</h3>
-  <div id="listaChoferes">
-      <p style="color:#666;">Cargando base de datos...</p>
-  </div>
+    <div class="grid">
+        <div class="card-admin">
+            <h3>Choferes en Línea</h3>
+            <div id="listaEnVivo">
+                <p style="color:#444;">Buscando señal en Saladillo...</p>
+            </div>
+        </div>
+
+        <div class="monitor-viajes">
+            <h3>Pedidos de Viaje</h3>
+            <div id="listaPedidos">
+                <p style="color:#444;">No hay pedidos ahora.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-admin" style="margin-top:15px;">
+        <h3>Administración de Cuentas</h3>
+        <div id="gestionCuentas">
+            </div>
+    </div>
 </div>
 
 <script>
-/* ===== SEGURIDAD ===== */
+/* SEGURIDAD BÁSICA */
 if(localStorage.getItem("adminAuth") !== "true"){
-    location.href = "/admin/login-admin.html";
+    // Descomentar esto cuando tengas el login-admin.html listo
+    // location.href = "login-admin.html";
 }
 
 function cerrarSesionAdmin(){
     localStorage.removeItem("adminAuth");
-    location.href = "/admin/login-admin.html";
+    location.reload();
 }
 
-/* ===== LÓGICA DE GESTIÓN ===== */
+/* LÓGICA DE MONITOREO REAL */
+function actualizarPanel() {
+    // 1. Obtener Choferes en línea desde el servidor
+    fetch("/obtener-choferes-activos")
+    .then(r => r.json())
+    .then(choferes => {
+        const div = document.getElementById("listaEnVivo");
+        div.innerHTML = "";
+        choferes.forEach(c => {
+            const row = document.createElement("div");
+            row.className = "chofer-row";
+            row.innerHTML = `
+                <div>
+                    <span class="nombre">${c.telefono}</span>
+                    <span class="tel">Lat: ${c.lat.toFixed(4)} | Lng: ${c.lng.toFixed(4)}</span>
+                </div>
+                <span class="badge status-${c.estado}">${c.estado.toUpperCase()}</span>
+            `;
+            div.appendChild(row);
+        });
+    });
 
-// Simulamos una base de datos de choferes (En producción vendrá del servidor)
-let choferesBD = JSON.parse(localStorage.getItem("choferesBD") || "[]");
-
-// Si la base está vacía, podemos cargar el chofer actual para probar la vinculación
-if(choferesBD.length === 0) {
-    const sesionActual = JSON.parse(localStorage.getItem("sesion") || "{}");
-    if(sesionActual.telefono) choferesBD.push(sesionActual);
-}
-
-function cargarChoferes(){
-    const lista = document.getElementById("listaChoferes");
-    lista.innerHTML = "";
-
-    if(choferesBD.length === 0){
-        lista.innerHTML = "<p>No hay choferes registrados aún.</p>";
-        return;
-    }
-
-    choferesBD.forEach((chofer, index) => {
-        const ahora = Date.now();
-        const estaActivo = (chofer.activoHasta > ahora) || (chofer.viajesGratis > 0);
-        const statusClass = estaActivo ? "status-active" : "status-inactive";
-        const statusText = estaActivo ? "ACTIVO" : "INACTIVO (Sin pago)";
-
-        const card = document.createElement("div");
-        card.className = "card-chofer";
-        card.innerHTML = `
-            <div class="info">
-                <h4>${chofer.nombre || 'Sin nombre'}</h4>
-                <p>Tel: ${chofer.telefono}</p>
-                <p>Regalo: <b>${chofer.viajesGratis || 0} viajes</b></p>
-                <span class="badge ${statusClass}">${statusText}</span>
-            </div>
-            <div class="acciones">
-                <button class="btn-activar" onclick="activar24hs(${index})">ACTIVAR 24HS</button>
-                <button class="btn-ver" onclick="verDocumentos(${index})">DOCS</button>
-            </div>
-        `;
-        lista.appendChild(card);
+    // 2. Obtener pedidos activos
+    fetch("/verificar-pedidos")
+    .then(r => r.json())
+    .then(viaje => {
+        const div = document.getElementById("listaPedidos");
+        if(viaje && viaje.activo) {
+            div.innerHTML = `
+                <div style="background:#222; padding:10px; border-radius:8px; border-left:4px solid #ffb300;">
+                    <p style="margin:0; font-weight:bold;">📍 De: ${viaje.origen}</p>
+                    <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">🏁 A: ${viaje.destino}</p>
+                    <p style="margin:5px 0 0 0; color:#ffb300; font-weight:bold;">${viaje.precio}</p>
+                </div>
+            `;
+        } else {
+            div.innerHTML = "<p style='color:#444;'>Sin actividad reciente.</p>";
+        }
     });
 }
 
-function activar24hs(index){
-    const confirmacion = confirm(`¿Confirmas el pago de $10.000 para ${choferesBD[index].nombre}?`);
-    if(confirmacion){
-        const ahora = Date.now();
-        const unDiaMs = 24 * 60 * 60 * 1000;
-        
-        // Sumamos 24hs desde ahora
-        choferesBD[index].activoHasta = ahora + unDiaMs;
-        
-        // Guardamos cambios
-        localStorage.setItem("choferesBD", JSON.stringify(choferesBD));
-        
-        // Sincronización con la sesión del chofer (para la demo local)
-        localStorage.setItem("sesion", JSON.stringify(choferesBD[index]));
-        
-        alert("¡Cuenta activada por 24 horas!");
-        cargarChoferes();
+// Función para activar desde el panel (esto enviaría un comando al servidor)
+function activarChoferManual(tel) {
+    const confirmacion = confirm(`¿Confirmas activación manual para ${tel}?`);
+    if(confirmacion) {
+        alert("Activado. El chofer ya puede recibir viajes.");
     }
 }
 
-function verDocumentos(index){
-    const c = choferesBD[index];
-    alert(`Documentación de ${c.nombre}:\n\nVehículo: ${c.autoModelo || 'N/A'}\nPatente: ${c.autoPatente || 'N/A'}\n\nEn la versión final, aquí verás las fotos enviadas.`);
-}
+// Actualizar cada 5 segundos
+setInterval(actualizarPanel, 5000);
+actualizarPanel();
 
-// Iniciar
-cargarChoferes();
 </script>
 </body>
 </html>
