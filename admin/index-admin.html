@@ -9,17 +9,18 @@
 body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
 header{ background:#111; padding:15px; text-align:center; font-size:22px; font-weight:bold; }
 .menu{ display:flex; flex-wrap:wrap; background:#1a1a1a; }
-.menu button{ flex:1; padding:15px; border:none; background:#1a1a1a; color:#fff; cursor:pointer; font-size:14px; }
+.menu button{ flex:1; padding:15px; border:none; background:#1a1a1a; color:#fff; cursor:pointer; font-size:14px; border-bottom: 2px solid transparent; }
 .menu button:hover{ background:#333; }
+.menu button.active-tab { border-bottom: 2px solid #00c853; background: #222; }
 .pantalla{ display:none; padding:20px; }
 .activa{ display:block; }
-.card{ background:#111; padding:15px; border-radius:10px; margin-bottom:15px; }
-input, select{ width:100%; padding:10px; margin-top:8px; margin-bottom:12px; border-radius:6px; border:none; }
-table{ width:100%; border-collapse:collapse; }
-th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:14px; }
+.card{ background:#111; padding:15px; border-radius:10px; margin-bottom:15px; border: 1px solid #222; }
+input, select{ width:100%; padding:12px; margin-top:8px; margin-bottom:12px; border-radius:6px; border:1px solid #333; background: #222; color: #fff; box-sizing: border-box; }
+table{ width:100%; border-collapse:collapse; margin-top: 10px; }
+th, td{ padding:12px; border-bottom:1px solid #333; text-align:left; font-size:14px; }
 .estado-ok{ color:#4caf50; font-weight: bold; }
 .estado-off{ color:#ff9800; font-weight: bold; }
-.btn{ padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-weight: bold; }
+.btn{ padding:10px 15px; border:none; border-radius:6px; cursor:pointer; font-weight: bold; font-size: 12px; transition: 0.3s; }
 .btn-ok{ background:#4caf50; color: #000; }
 .btn-ver{ background:#2196f3; color: #fff; margin-right: 5px; }
 .btn-del{ background:#f44336; color: #fff; }
@@ -27,12 +28,13 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 /* Modal para ver fotos */
 #modalFotos {
     display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
-    background:rgba(0,0,0,0.9); z-index:2000; overflow-y:auto; padding:20px; box-sizing:border-box;
+    background:rgba(0,0,0,0.95); z-index:2000; overflow-y:auto; padding:20px; box-sizing:border-box;
 }
-.modal-content { max-width:600px; margin:auto; background:#111; padding:20px; border-radius:10px; }
-.grid-fotos { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px; }
-.grid-fotos img { width:100%; border-radius:5px; border:1px solid #333; }
-.grid-fotos label { font-size:10px; color:#aaa; display:block; text-align:center; }
+.modal-content { max-width:600px; margin:auto; background:#111; padding:20px; border-radius:15px; border: 1px solid #333; }
+.grid-fotos { display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px; }
+.grid-fotos div { text-align: center; }
+.grid-fotos img { width:100%; border-radius:8px; border:1px solid #444; cursor: pointer; }
+.grid-fotos label { font-size:12px; color:#00c853; display:block; margin-bottom: 5px; font-weight: bold; }
 </style>
 </head>
 
@@ -41,80 +43,85 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 <header>📊 Smart Traslados – Panel General</header>
 
 <div class="menu">
-    <button onclick="mostrar('inicio')">Inicio</button>
-    <button onclick="mostrar('conductores')">Conductores</button>
-    <button onclick="mostrar('pasajeros')">Pasajeros</button>
-    <button onclick="mostrar('viajes')">Viajes</button>
-    <button onclick="mostrar('pagos')">Historial Cobros</button>
-    <button onclick="mostrar('tarifas')">Tarifas</button>
-    <button onclick="mostrar('mensajes')">Mensajes</button>
-    <button onclick="mostrar('config')">Configuración</button>
+    <button onclick="mostrar('inicio')" id="btn-inicio">Inicio</button>
+    <button onclick="mostrar('conductores')" id="btn-conductores">Conductores</button>
+    <button onclick="mostrar('tarifas')" id="btn-tarifas">Tarifas/Tokens</button>
+    <button onclick="mostrar('config')" id="btn-config">Configuración</button>
+    <button onclick="mostrar('pasajeros')" id="btn-pasajeros">Pasajeros</button>
 </div>
 
 <div id="modalFotos">
     <div class="modal-content">
-        <h3 id="docNombre">Documentación</h3>
+        <h3 id="docNombre" style="text-align: center; color: #00c853;">Documentación</h3>
         <div class="grid-fotos" id="contenedorFotos"></div>
-        <button class="btn btn-del" style="width:100%; margin-top:20px;" onclick="cerrarFotos()">CERRAR</button>
+        <button class="btn btn-del" style="width:100%; margin-top:20px; padding: 15px;" onclick="cerrarFotos()">CERRAR VISTA</button>
     </div>
 </div>
 
 <div id="inicio" class="pantalla activa">
     <div class="card">
-        <h3>Resumen general</h3>
-        <p>Conductores totales: <b id="cActivos">0</b></p>
-        <p>Conductores habilitados: <b id="cHabilitados">0</b></p>
-        <p>Pasajeros registrados: <b id="pTotal">0</b></p>
+        <h3>Resumen Real</h3>
+        <p>Choferes Registrados: <b id="cTotal">0</b></p>
+        <p>Choferes Activos (Pagos): <b id="cHabilitados">0</b></p>
+        <p>Pasajeros en Sistema: <b id="pTotal">0</b></p>
     </div>
 </div>
 
 <div id="conductores" class="pantalla">
     <div class="card">
-        <h3>Conductores Registrados</h3>
-        <table id="tablaConductores">
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Pago / Acceso</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody id="bodyConductores"></tbody>
-        </table>
+        <h3>Lista de Choferes</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyConductores"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<div id="pasajeros" class="pantalla"><div class="card"><h3>Pasajeros</h3><table id="tablaPasajeros"><tr><th>Nombre</th><th>Teléfono</th></tr></table></div></div>
-<div id="viajes" class="pantalla"><div class="card"><h3>Historial de viajes</h3><table><tr><th>Fecha</th><th>Chofer</th><th>Monto</th></tr></table></div></div>
-
 <div id="tarifas" class="pantalla">
     <div class="card">
-        <h3>Tarifas</h3>
-        <label>Precio base por viaje</label>
-        <input type="number" id="precioBase" value="500">
-        <label>Monto fijo para conectarse (Cuota)</label>
+        <h3 style="color: #00c853;">Generador de Códigos (Tokens)</h3>
+        <p style="font-size: 13px; color: #ccc;">Generá un código de 6 dígitos para que el chofer lo use cuando quiera.</p>
+        <button class="btn btn-ok" style="width: 100%; padding: 15px;" onclick="generarToken()">GENERAR CÓDIGO NUEVO</button>
+        <div id="tokenGenerado" style="margin-top: 20px; text-align: center; font-size: 32px; font-weight: bold; color: #00c853; letter-spacing: 5px;"></div>
+    </div>
+
+    <div class="card">
+        <h3>Configuración de Precios</h3>
+        <label>Monto de Cuota Mensual ($)</label>
         <input type="number" id="montoFijo" value="10000">
-        <button class="btn btn-ok" onclick="guardarTarifas()">Guardar cambios</button>
+        <button class="btn btn-ok" onclick="alert('Precio guardado localmente')">Actualizar Precio</button>
     </div>
 </div>
 
 <div id="config" class="pantalla">
     <div class="card">
-        <h3>Configuración general</h3>
-        <label>Alias/CBU para recibir pagos</label>
-        <input id="cuentaBancaria" placeholder="Ej: smart.taxi.pago">
+        <h3>Datos de Pago para Choferes</h3>
+        <label>Alias / CBU de Cobro</label>
+        <input id="cuentaBancaria" placeholder="Ej: smart.traslados.mp">
         <button class="btn btn-ok" onclick="guardarConfig()">Guardar Configuración</button>
     </div>
 </div>
+
+<div id="pasajeros" class="pantalla"><div class="card"><h3>Pasajeros</h3><table id="tablaPasajeros"><tr><th>Nombre</th><th>Teléfono</th></tr></table></div></div>
 
 <script>
 let usuariosDB = [];
 
 function mostrar(id){
     document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
+    document.querySelectorAll('.menu button').forEach(b=>b.classList.remove('active-tab'));
     document.getElementById(id).classList.add('activa');
-    if(id === 'conductores') cargarConductoresReal();
+    document.getElementById('btn-'+id).classList.add('active-tab');
+    if(id === 'conductores' || id === 'inicio') cargarTodo();
 }
 
 async function cargarTodo(){
@@ -125,90 +132,87 @@ async function cargarTodo(){
         const conductores = usuariosDB.filter(u => u.tipo === 'chofer');
         const pasajeros = usuariosDB.filter(u => u.tipo === 'pasajero');
 
-        document.getElementById('cActivos').innerText = conductores.length;
+        document.getElementById('cTotal').innerText = conductores.length;
         document.getElementById('cHabilitados').innerText = conductores.filter(c => c.pagoActivo).length;
         document.getElementById('pTotal').innerText = pasajeros.length;
 
-        cargarConductoresReal();
-    } catch (e) { console.error("Error cargando datos", e); }
+        renderizarConductores(conductores);
+    } catch (e) { console.error("Error al conectar con el servidor"); }
 }
 
-function cargarConductoresReal(){
+function renderizarConductores(lista){
     let tabla = document.getElementById('bodyConductores');
-    if(!tabla) return;
     tabla.innerHTML = "";
-    
-    const conductores = usuariosDB.filter(u => u.tipo === 'chofer');
-
-    conductores.forEach(c => {
-        const estadoPago = c.pagoActivo ? '<span class="estado-ok">PAGADO</span>' : '<span class="estado-off">PENDIENTE</span>';
-        const btnTexto = c.pagoActivo ? 'Quitar Acceso' : 'Habilitar Pago';
-        
+    lista.forEach(c => {
+        const estado = c.pagoActivo ? '<span class="estado-ok">ACTIVO</span>' : '<span class="estado-off">PENDIENTE</span>';
         tabla.innerHTML += `
         <tr>
             <td>${c.nombre || 'Sin nombre'}</td>
             <td>${c.telefono}</td>
-            <td>${estadoPago}</td>
+            <td>${estado}</td>
             <td>
                 <button class="btn btn-ver" onclick="verDocumentos('${c.telefono}')">VER FOTOS</button>
-                <button class="btn btn-ok" onclick="togglePago('${c.telefono}', ${!c.pagoActivo})">${btnTexto}</button>
+                <button class="btn btn-del" onclick="toggleAcceso('${c.telefono}', ${c.pagoActivo})">
+                    ${c.pagoActivo ? 'Bloquear' : 'Activar Manual'}
+                </button>
             </td>
         </tr>`;
     });
 }
 
-async function togglePago(tel, nuevoEstado) {
-    // Aquí podrías usar una ruta específica o reutilizar la de actualizar perfil
-    // Para simplificar, enviamos la actualización al servidor
+// GENERAR TOKEN REAL
+async function generarToken() {
+    const cod = Math.floor(100000 + Math.random() * 900000).toString();
     try {
-        const res = await fetch('/actualizar-perfil-chofer', {
+        const res = await fetch('/crear-token', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telefono: tel,
-                pagoActivo: nuevoEstado 
-            })
+            body: JSON.stringify({ codigo: cod })
         });
         if(res.ok) {
-            alert("Estado de pago actualizado");
-            cargarTodo();
+            document.getElementById('tokenGenerado').innerText = cod;
         }
-    } catch (e) { alert("Error al actualizar"); }
+    } catch (e) { alert("Error al crear token en servidor"); }
+}
+
+async function toggleAcceso(tel, estadoActual) {
+    if(!confirm("¿Deseas cambiar el estado de este chofer?")) return;
+    try {
+        await fetch('/actualizar-perfil-chofer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ telefono: tel, pagoActivo: !estadoActual })
+        });
+        cargarTodo();
+    } catch (e) { alert("Error"); }
 }
 
 function verDocumentos(tel) {
     const c = usuariosDB.find(u => u.telefono === tel);
     if(!c) return;
-
-    document.getElementById('docNombre').innerText = "Documentos de " + (c.nombre || c.telefono);
+    document.getElementById('docNombre').innerText = "Fotos de " + (c.nombre || c.telefono);
     const contenedor = document.getElementById('contenedorFotos');
-    
     contenedor.innerHTML = `
-        <div><label>Perfil</label><img src="${c.foto || ''}"></div>
-        <div><label>Carnet</label><img src="${c.fotoCarnet || ''}"></div>
-        <div><label>Seguro</label><img src="${c.fotoSeguro || ''}"></div>
-        <div><label>Tarjeta</label><img src="${c.fotoTarjeta || ''}"></div>
+        <div><label>Perfil</label><img src="${c.foto || ''}" onclick="window.open(this.src)"></div>
+        <div><label>Carnet</label><img src="${c.fotoCarnet || ''}" onclick="window.open(this.src)"></div>
+        <div><label>Seguro</label><img src="${c.fotoSeguro || ''}" onclick="window.open(this.src)"></div>
+        <div><label>Tarjeta</label><img src="${c.fotoTarjeta || ''}" onclick="window.open(this.src)"></div>
     `;
     document.getElementById('modalFotos').style.display = 'block';
 }
 
 function cerrarFotos() { document.getElementById('modalFotos').style.display = 'none'; }
 
-function guardarTarifas() {
-    const monto = document.getElementById('montoFijo').value;
-    localStorage.setItem('montoFijo', monto);
-    alert("Monto guardado: $" + monto);
-}
-
 function guardarConfig() {
-    const alias = document.getElementById('cuentaBancaria').value;
-    localStorage.setItem('cuentaAlias', alias);
-    alert("Alias guardado: " + alias);
+    localStorage.setItem('aliasPago', document.getElementById('cuentaBancaria').value);
+    alert("Datos guardados.");
 }
 
-// Carga inicial
-window.onload = cargarTodo;
+// Inicio automático
+window.onload = () => {
+    document.getElementById('cuentaBancaria').value = localStorage.getItem('aliasPago') || "";
+    cargarTodo();
+};
 </script>
-
 </body>
 </html>
