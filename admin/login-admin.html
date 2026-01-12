@@ -25,12 +25,11 @@ function loginAdmin(){
     const usuario = document.getElementById('adminUsuario').value.trim();
     const clave = document.getElementById('adminClave').value.trim();
 
-    // Credenciales fijas por ahora
+    // Credenciales fijas
     if(usuario === "admin" && clave === "1234"){
-        // Guardamos una marca de que el admin entró
         localStorage.setItem("adminAuth", "true");
-        // Redirigimos al panel usando la ruta completa
-        location.href = "/admin/index-admin.html";
+        // CORRECCIÓN: Apuntamos a la ruta general que maneja el servidor
+        location.href = "/admin";
     } else {
         alert("Credenciales incorrectas");
     }
