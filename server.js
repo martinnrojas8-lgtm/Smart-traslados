@@ -6,7 +6,7 @@ const app = express();
 
 app.use(cors());
 
-// Configuración para recibir fotos pesadas de iPhone
+// Configuración para recibir fotos pesadas (Aumentado a 100mb por seguridad)
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
@@ -15,7 +15,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("Conectado a MongoDB ✅"))
   .catch(err => console.error("Error Mongo ❌:", err));
 
-// ESQUEMA DE USUARIO (Actualizado para incluir todos los campos necesarios)
+// ESQUEMA DE USUARIO
 const UsuarioSchema = new mongoose.Schema({
     telefono: { type: String, unique: true },
     rol: String,
@@ -40,7 +40,7 @@ app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
 // --- RUTAS DE API ---
 
-// REGISTRO: Guarda en MongoDB para que el Admin lo vea
+// REGISTRO
 app.post('/register', async (req, res) => {
     try {
         const tel = req.body.telefono.trim();
@@ -57,57 +57,68 @@ app.post('/register', async (req, res) => {
         });
         
         await nuevoUsuario.save();
-        console.log(`Nuevo usuario registrado en DB: ${tel}`);
         res.json({ mensaje: "Ok" });
     } catch (e) { 
-        console.error("Error en registro:", e);
         res.status(500).json({ error: "Error en registro" }); 
     }
 });
 
-// LOGIN: Verifica si ya existe para permitir el ingreso
+// LOGIN
 app.post('/login', async (req, res) => {
     try {
         const tel = req.body.telefono.trim();
         const rolElegido = req.body.rol.toLowerCase().trim();
-        
         const usuario = await Usuario.findOne({ telefono: tel, rol: rolElegido });
         
         if (usuario) {
-            console.log(`Login exitoso: ${tel}`);
             res.json({ mensaje: "Ok", usuario: usuario });
         } else {
-            res.status(404).json({ mensaje: "Usuario no encontrado con ese rol" });
+            res.status(404).json({ mensaje: "Usuario no encontrado" });
         }
     } catch (e) { 
-        console.error("Error en login:", e);
         res.status(500).json({ error: "Error en servidor" }); 
     }
 });
 
-// ACTUALIZAR PERFIL
+// ACTUALIZAR PERFIL (Corregido para coincidir con perfil.html)
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
-        const tel = d.telefono.trim();
-        
-        await Usuario.findOneAndUpdate({ telefono: tel }, { 
-            nombre: d.nombre, 
-            autoModelo: d.modelo, 
-            autoPatente: d.patente, 
-            autoColor: d.color, 
-            foto: d.fotoPerfil, 
+        console.log("Recibiendo actualización de perfil para:", d.telefono);
+
+        // Mapeo exacto de los campos que enviamos desde el HTML
+        const actualizacion = {
+            nombre: d.nombre,
+            autoModelo: d.modelo,
+            autoPatente: d.patente,
+            autoColor: d.color,
+            foto: d.fotoPerfil,
             fotoCarnet: d.fotoCarnet,
-            fotoSeguro: d.fotoSeguro, 
-            fotoTarjeta: d.fotoTarjeta 
-        });
-        res.json({ mensaje: "Ok" });
+            fotoSeguro: d.fotoSeguro,
+            fotoTarjeta: d.fotoTarjeta,
+            estadoRevision: "pendiente" // Cada vez que edita, vuelve a revisión
+        };
+
+        const resultado = await Usuario.findOneAndUpdate(
+            { telefono: d.telefono.trim() }, 
+            actualizacion,
+            { new: true }
+        );
+
+        if (resultado) {
+            console.log("✅ Perfil actualizado correctamente");
+            res.json({ mensaje: "Ok" });
+        } else {
+            console.log("❌ No se encontró el usuario para actualizar");
+            res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
     } catch (e) { 
-        res.status(500).json({ error: "Error al guardar perfil" }); 
+        console.error("❌ Error al guardar perfil:", e);
+        res.status(500).json({ error: "Error interno al guardar documentos" }); 
     }
 });
 
-// OBTENER TODOS LOS USUARIOS (Para tu Panel de Admin)
 app.get('/obtener-usuarios', async (req, res) => {
     try {
         const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
@@ -117,7 +128,6 @@ app.get('/obtener-usuarios', async (req, res) => {
     }
 });
 
-// --- RUTA RAIZ / SALVAVIDAS ---
 app.get('*', (req, res) => { 
     res.sendFile(path.join(__dirname, 'Public', 'login.html')); 
 });
