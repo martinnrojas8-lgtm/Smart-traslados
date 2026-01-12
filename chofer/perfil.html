@@ -34,27 +34,26 @@
     <label>Color del Auto <span class="requerido">*</span></label>
     <input type="text" id="color" placeholder="Ej: Blanco">
 
-    <label>Foto de Perfil <span class="requerido">*</span></label>
+    <label>Foto del Conductor <span class="requerido">*</span></label>
     <input type="file" id="fotoPerfil" accept="image/*" onchange="preview(this, 'pPerfil')">
     <img id="pPerfil" class="preview-img">
 
-    <label>Foto de Carnet de Conducir <span class="requerido">*</span></label>
-    <input type="file" id="fotoCarnet" accept="image/*" onchange="preview(this, 'pCarnet')">
-    <img id="pCarnet" class="preview-img">
+    <label>Foto de Tarjeta del Vehículo <span class="requerido">*</span></label>
+    <input type="file" id="fotoTarjeta" accept="image/*" onchange="preview(this, 'pTarjeta')">
+    <img id="pTarjeta" class="preview-img">
 
     <label>Foto de Seguro <span class="requerido">*</span></label>
     <input type="file" id="fotoSeguro" accept="image/*" onchange="preview(this, 'pSeguro')">
     <img id="pSeguro" class="preview-img">
 
-    <label>Foto de Tarjeta Vehículo <span class="requerido">*</span></label>
-    <input type="file" id="fotoTarjeta" accept="image/*" onchange="preview(this, 'pTarjeta')">
-    <img id="pTarjeta" class="preview-img">
+    <label>Foto de Carnet de Conducir <span class="requerido">*</span></label>
+    <input type="file" id="fotoCarnet" accept="image/*" onchange="preview(this, 'pCarnet')">
+    <img id="pCarnet" class="preview-img">
 
     <button id="btnGuardar" onclick="guardarPerfil()">GUARDAR Y ENVIAR</button>
 </div>
 
 <script>
-    // Función para previsualizar la foto antes de enviarla
     function preview(input, id) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -79,18 +78,18 @@
         const tel = localStorage.getItem('userTelefono');
         const btn = document.getElementById('btnGuardar');
 
-        // --- TRABAS DE SEGURIDAD (CAMPOS OBLIGATORIOS) ---
         const nombre = document.getElementById('nombre').value.trim();
         const modelo = document.getElementById('modelo').value.trim();
         const patente = document.getElementById('patente').value.trim();
         const color = document.getElementById('color').value.trim();
         
         const fPerfil = document.getElementById('fotoPerfil').files[0];
-        const fCarnet = document.getElementById('fotoCarnet').files[0];
-        const fSeguro = document.getElementById('fotoSeguro').files[0];
         const fTarjeta = document.getElementById('fotoTarjeta').files[0];
+        const fSeguro = document.getElementById('fotoSeguro').files[0];
+        const fCarnet = document.getElementById('fotoCarnet').files[0];
 
-        if (!nombre || !modelo || !patente || !color || !fPerfil || !fCarnet || !fSeguro || !fTarjeta) {
+        // Validación de todos los campos nuevos y viejos
+        if (!nombre || !modelo || !patente || !color || !fPerfil || !fTarjeta || !fSeguro || !fCarnet) {
             alert("⚠️ Error: Debes completar todos los datos y subir las 4 fotos obligatorias.");
             return;
         }
@@ -106,9 +105,9 @@
                 patente: patente,
                 color: color,
                 fotoPerfil: await toBase64(fPerfil),
-                fotoCarnet: await toBase64(fCarnet),
+                fotoTarjeta: await toBase64(fTarjeta),
                 fotoSeguro: await toBase64(fSeguro),
-                fotoTarjeta: await toBase64(fTarjeta)
+                fotoCarnet: await toBase64(fCarnet)
             };
 
             const response = await fetch('/actualizar-perfil-chofer', {
