@@ -27,9 +27,14 @@ function loginAdmin(){
 
     // Credenciales fijas
     if(usuario === "admin" && clave === "1234"){
+        // Guardamos la marca de autenticación
         localStorage.setItem("adminAuth", "true");
-        // CORRECCIÓN: Apuntamos a la ruta general que maneja el servidor
-        location.href = "/admin";
+        
+        // REDIRECCIÓN EXACTA: 
+        // Apuntamos a la carpeta 'admin' y al archivo 'index-admin.html' 
+        // que es el código madre que restauraste.
+        location.href = "/admin/index-admin.html";
+        
     } else {
         alert("Credenciales incorrectas");
     }
