@@ -6,12 +6,13 @@ const app = express();
 
 app.use(cors());
 
-// Configuración para recibir fotos pesadas
+// Configuración para recibir fotos pesadas de iPhone y Android
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // --- CONEXIÓN A MONGODB (CON TU CLAVE REAL) ---
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
+// Usamos la cadena directa para que Render no tenga dudas
+const MONGO_URI = 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Conectado a MongoDB ✅"))
@@ -29,7 +30,7 @@ const UsuarioSchema = new mongoose.Schema({
     fotoCarnet: String,
     fotoSeguro: String,
     fotoTarjeta: String,
-    pagoActivo: { type: Boolean, default: false }, // Crucial para tu control de pagos
+    pagoActivo: { type: Boolean, default: false },
     estadoRevision: { type: String, default: "pendiente" },
     fechaRegistro: { type: Date, default: Date.now }
 });
@@ -50,11 +51,22 @@ app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
 // --- API ---
 
-app.get('/obtener-usuarios', async (req, res) => {
+// AGREGADO: Recuperamos la ruta de Login que faltaba en tu último código
+app.post('/login', async (req, res) => {
     try {
-        const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
-        res.json(usuarios);
-    } catch (e) { res.status(500).send(e); }
+        const tel = req.body.telefono.trim();
+        const rolElegido = req.body.rol.toLowerCase().trim();
+        const usuario = await Usuario.findOne({ telefono: tel, rol: rolElegido });
+        
+        if (usuario) {
+            console.log(`Login exitoso: ${tel}`);
+            res.json({ mensaje: "Ok", usuario: usuario });
+        } else {
+            res.status(404).json({ mensaje: "Usuario no encontrado" });
+        }
+    } catch (e) { 
+        res.status(500).json({ error: "Error en servidor" }); 
+    }
 });
 
 app.post('/register', async (req, res) => {
@@ -64,8 +76,15 @@ app.post('/register', async (req, res) => {
         if(existe) return res.json({ mensaje: "Ok", usuario: existe });
         const nuevo = new Usuario({ telefono, rol: rol.toLowerCase() });
         await nuevo.save();
-        res.json({ mensaje: "Ok" });
+        res.json({ mensaje: "Ok", usuario: nuevo });
     } catch (e) { res.status(500).json({ error: "Error" }); }
+});
+
+app.get('/obtener-usuarios', async (req, res) => {
+    try {
+        const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
+        res.json(usuarios);
+    } catch (e) { res.status(500).send(e); }
 });
 
 app.post('/actualizar-perfil-chofer', async (req, res) => {
@@ -80,7 +99,7 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// RUTAS DE TOKENS (Para que el panel de admin funcione)
+// RUTAS DE TOKENS
 app.post('/crear-token', async (req, res) => {
     const nuevoToken = new Token({ codigo: req.body.codigo });
     await nuevoToken.save();
@@ -97,11 +116,12 @@ app.post('/validar-token', async (req, res) => {
     } else { res.status(400).json({ ok: false }); }
 });
 
-// RUTA ADMIN
+// RUTA ADMIN (Apunta a tu panel maestro)
 app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index-admin.html'));
 });
 
+// Salvavidas: si algo falla, vuelve al login principal
 app.get('*', (req, res) => { 
     res.sendFile(path.join(__dirname, 'Public', 'login.html')); 
 });
