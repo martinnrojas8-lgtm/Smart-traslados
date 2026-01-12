@@ -2,8 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Smart Traslados</title>
+<title>Smart Traslados - Login</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2ecc71">
+
 <style>
   * { box-sizing: border-box; }
 
@@ -18,7 +22,7 @@
     min-height:100vh; 
   }
 
-  /* ANIMACIÓN DE 7 SEGUNDOS */
+  /* ANIMACIÓN LENTA DE 7 SEGUNDOS */
   @keyframes fadeInRevelado {
     0% { opacity: 0; filter: brightness(0) blur(10px); transform: scale(0.8); }
     100% { opacity: 1; filter: brightness(1) blur(0); transform: scale(1); }
@@ -70,7 +74,7 @@
     outline: none;
   }
   
-  input, select { 
+  input { 
     padding: 0 15px; 
     background: #fdfdfd; 
     color: #333; 
@@ -79,11 +83,30 @@
   .btn { font-weight: bold; cursor: pointer; text-decoration: none; transition: 0.3s; }
   .btn-verde { background:#2ecc71; color:#fff; }
   .btn-azul { background:#00bcd4; color:#fff; }
-  .btn-download { background: transparent; border: 1px solid #3d4752; color: #888; font-size: 14px; margin-top: 5px; }
+  
+  .btn-download { 
+    background: transparent; 
+    border: 1px solid #3d4752; 
+    color: #888; 
+    font-size: 14px; 
+    margin-top: 5px; 
+  }
 
   .btn:active { transform: scale(0.96); }
 
-  #ios-prompt { display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; background: #fff; color: #000; padding: 20px; border-radius: 15px; text-align: center; z-index: 1000; }
+  #ios-prompt { 
+    display: none; 
+    position: fixed; 
+    bottom: 20px; 
+    left: 20px; 
+    right: 20px; 
+    background: #fff; 
+    color: #000; 
+    padding: 20px; 
+    border-radius: 15px; 
+    text-align: center; 
+    z-index: 1000; 
+  }
 </style>
 </head>
 <body>
@@ -108,11 +131,18 @@
     <a href="#" id="descargaLink" class="btn btn-download">Descargar App</a>
   </div>
 
+  <div id="ios-prompt">
+    Tocá compartir y luego <strong>"Agregar al inicio"</strong>.
+    <br><br>
+    <span onclick="this.parentElement.style.display='none'" style="color:#007aff;cursor:pointer;">Cerrar</span>
+  </div>
+
 <script>
 async function enviarRegistro() {
     const tel = document.getElementById("telefono").value.trim();
     const rolElegido = document.getElementById("rol").value;
     if (tel.length < 8) return alert("Ingresá un teléfono válido.");
+    
     try {
         const res = await fetch('/register', {
             method: 'POST',
@@ -126,13 +156,30 @@ async function enviarRegistro() {
         } else { alert("Error al registrar"); }
     } catch (e) { alert("Error de conexión"); }
 }
-function volverLogin() { window.location.href = "/login.html"; }
+
+function volverLogin() { window.location.href = "login.html"; }
+
+// LÓGICA DE INSTALACIÓN / DESCARGA
 const link = document.getElementById('descargaLink');
 if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    link.onclick = (e) => { e.preventDefault(); alert("En iOS, usa 'Compartir' > 'Agregar al inicio'"); };
+    link.onclick = (e) => {
+        e.preventDefault();
+        document.getElementById('ios-prompt').style.display = 'block';
+    };
 } else {
+    // Apunta al archivo APK directamente en la misma carpeta
     link.href = "smart-traslados.apk"; 
     link.setAttribute("download", "SmartTraslados.apk");
+    link.onclick = () => {
+        alert("La descarga comenzará. Al finalizar, abre el archivo desde tus notificaciones para instalar la aplicación.");
+    };
+}
+
+// Registrar el Service Worker para permitir la instalación PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("Service Worker registrado"))
+      .catch(err => console.log("Error al registrar SW", err));
 }
 </script>
 </body>
