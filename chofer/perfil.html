@@ -5,20 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perfil del Chofer - Smart Taxi</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #000; color: #fff; padding: 20px; }
-        .container { max-width: 500px; background: #111; padding: 20px; border-radius: 10px; margin: auto; border: 1px solid #333; }
-        h2 { text-align: center; color: #00c853; }
+        body { font-family: Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 0; }
+        
+        /* Header con Foto Real */
+        header {
+            background: #111;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .perfil-info { display: flex; align-items: center; gap: 10px; }
+        #imgMiniatura {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #00c853;
+            background: #222;
+        }
+
+        .container { max-width: 500px; background: #111; padding: 20px; border-radius: 10px; margin: 20px auto; border: 1px solid #333; box-sizing: border-box; }
+        h2 { text-align: center; color: #00c853; margin-top: 0; }
         label { display: block; margin-top: 15px; font-weight: bold; color: #ccc; }
-        input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #333; border-radius: 5px; box-sizing: border-box; background: #222; color: #fff; }
+        input[type="text"] { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #333; border-radius: 8px; box-sizing: border-box; background: #222; color: #fff; }
         .preview-img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin-top: 10px; display: none; border: 1px solid #00c853; }
-        button { width: 100%; padding: 15px; background: #00c853; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 25px; font-size: 16px; color: #000; }
+        
+        button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 15px; }
+        .btn-guardar { background: #00c853; color: #000; }
+        .btn-volver { background: #333; color: #fff; border: 1px solid #444; }
         button:disabled { background: #444; color: #888; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
+<header>
+    <div class="perfil-info">
+        <img id="imgMiniatura" src="" alt="">
+        <span style="font-size: 14px; font-weight: bold;">Mi Perfil</span>
+    </div>
+    <span style="color: #00c853; font-weight: bold;">Smart Chofer</span>
+</header>
+
 <div class="container">
-    <h2>Completar Perfil Chofer</h2>
+    <h2>Mis Datos</h2>
     
     <label>Nombre Completo</label>
     <input type="text" id="nombre" placeholder="Ej: Juan Pérez">
@@ -48,26 +79,18 @@
     <input type="file" accept="image/*" onchange="procesarFoto(this, 'pTarjeta')">
     <img id="pTarjeta" class="preview-img">
 
-    <button id="btnGuardar" onclick="guardarPerfil()">GUARDAR Y ENVIAR</button>
+    <button class="btn-guardar" id="btnGuardar" onclick="guardarPerfil()">GUARDAR Y ENVIAR</button>
+    <button class="btn-volver" onclick="location.href='index.html'">VOLVER AL MAPA</button>
 </div>
 
 <script>
-    // Objeto para mantener las imágenes (las que traemos de la DB o las nuevas que cargamos)
     const imagenesComprimidas = { pPerfil: null, pCarnet: null, pSeguro: null, pTarjeta: null };
 
-    // --- 1. CARGAR DATOS AL INICIAR ---
     async function cargarDatosActuales() {
-        // Obtenemos el teléfono de la sesión
-        let tel = localStorage.getItem('userTelefono');
-        if (!tel) {
-            const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
-            tel = sesion.telefono;
-        }
-        
+        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
         if (!tel) return;
 
         try {
-            // Pedimos todos los usuarios y filtramos al actual
             const response = await fetch('/obtener-usuarios');
             const usuarios = await response.json();
             const miPerfil = usuarios.find(u => u.telefono === tel);
@@ -78,25 +101,27 @@
                 document.getElementById('patente').value = miPerfil.autoPatente || "";
                 document.getElementById('color').value = miPerfil.autoColor || "";
 
-                // Si ya tiene fotos en la base de datos, las mostramos
+                // Foto del Header
+                if (miPerfil.foto) {
+                    document.getElementById('imgMiniatura').src = miPerfil.foto;
+                }
+
+                // Previews
                 if (miPerfil.foto) mostrarFotoExistente('pPerfil', miPerfil.foto);
                 if (miPerfil.fotoCarnet) mostrarFotoExistente('pCarnet', miPerfil.fotoCarnet);
                 if (miPerfil.fotoSeguro) mostrarFotoExistente('pSeguro', miPerfil.fotoSeguro);
                 if (miPerfil.fotoTarjeta) mostrarFotoExistente('pTarjeta', miPerfil.fotoTarjeta);
             }
-        } catch (e) {
-            console.error("Error al cargar datos actuales:", e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     function mostrarFotoExistente(id, src) {
         const img = document.getElementById(id);
         img.src = src;
         img.style.display = 'block';
-        imagenesComprimidas[id] = src; // Importante: Guardamos la referencia para no perderla al guardar
+        imagenesComprimidas[id] = src;
     }
 
-    // --- 2. PROCESAR Y COMPRIMIR NUEVAS FOTOS ---
     function procesarFoto(input, idPreview) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -106,45 +131,32 @@
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxW = 800; // Calidad óptima para MongoDB
+                    const maxW = 800;
                     const scale = maxW / img.width;
                     canvas.width = maxW;
                     canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
                     const base64 = canvas.toDataURL('image/jpeg', 0.7);
                     imagenesComprimidas[idPreview] = base64;
+                    document.getElementById(idPreview).src = base64;
+                    document.getElementById(idPreview).style.display = 'block';
                     
-                    const preview = document.getElementById(idPreview);
-                    preview.src = base64;
-                    preview.style.display = 'block';
+                    // Si es la foto de perfil, actualizar miniatura arriba también
+                    if(idPreview === 'pPerfil') document.getElementById('imgMiniatura').src = base64;
                 }
             }
             reader.readAsDataURL(input.files[0]);
         }
     }
 
-    // --- 3. GUARDAR CAMBIOS ---
     async function guardarPerfil() {
-        let tel = localStorage.getItem('userTelefono');
-        if (!tel) {
-            const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
-            tel = sesion.telefono;
-        }
-
-        if (!tel) {
-            alert("❌ No se detectó tu sesión. Reingresa.");
-            return;
-        }
-
+        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
         const nombre = document.getElementById('nombre').value.trim();
         const modelo = document.getElementById('modelo').value.trim();
         const patente = document.getElementById('patente').value.trim();
         const color = document.getElementById('color').value.trim();
 
-        if (!nombre || !modelo || !patente || !color || 
-            !imagenesComprimidas.pPerfil || !imagenesComprimidas.pCarnet || 
-            !imagenesComprimidas.pSeguro || !imagenesComprimidas.pTarjeta) {
+        if (!nombre || !modelo || !patente || !color || !imagenesComprimidas.pPerfil || !imagenesComprimidas.pCarnet || !imagenesComprimidas.pSeguro || !imagenesComprimidas.pTarjeta) {
             alert("⚠️ Por favor completa todos los campos y fotos.");
             return;
         }
@@ -176,20 +188,12 @@
             if (result.mensaje === "Ok") {
                 alert("✅ Perfil actualizado correctamente.");
                 window.location.href = 'index.html';
-            } else {
-                alert("❌ Error: " + (result.error || "No se pudo guardar"));
             }
-        } catch (error) {
-            alert("❌ Error de red o servidor.");
-        } finally {
-            btn.innerText = "GUARDAR Y ENVIAR";
-            btn.disabled = false;
-        }
+        } catch (error) { alert("❌ Error."); }
+        finally { btn.innerText = "GUARDAR Y ENVIAR"; btn.disabled = false; }
     }
 
-    // Ejecutar carga al abrir la página
     window.onload = cargarDatosActuales;
 </script>
-
 </body>
 </html>
