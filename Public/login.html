@@ -4,94 +4,107 @@
 <meta charset="UTF-8">
 <title>Smart Traslados</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link rel="apple-touch-icon" href="/public/IMG_20260103_204207.png">
-<link rel="manifest" href="/manifest.json">
-
 <style>
-  body { margin:0; font-family: 'Segoe UI', Arial, sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; overflow: hidden; }
+  /* ESTILO SIMPLE BASADO EN TU FOTO */
+  body { 
+    margin:0; 
+    font-family: sans-serif; 
+    background:#121921; /* El fondo oscuro de tu imagen */
+    color:#fff; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    min-height:100vh; 
+  }
   
-  /* Animación del Auto */
-  .car-container { width: 100%; position: absolute; top: 15%; display: flex; justify-content: center; pointer-events: none; }
-  .car-icon { font-size: 50px; position: relative; animation: driveIn 1.5s ease-out forwards; }
+  .card { 
+    background:#1e2630; 
+    padding:30px; 
+    border-radius:15px; 
+    width:85%; 
+    max-width:340px; 
+    text-align:center; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  }
   
-  @keyframes driveIn {
-    0% { transform: translateX(-200vw); }
-    70% { transform: translateX(20px); }
-    100% { transform: translateX(0); }
+  h2 { margin-bottom: 20px; font-weight: normal; }
+  
+  input, select { 
+    width:100%; 
+    padding:12px; 
+    border-radius:8px; 
+    border:none; 
+    background:#f0f0f0; 
+    color:#333; 
+    font-size:16px; 
+    margin-bottom:15px; 
+    box-sizing:border-box; 
+  }
+  
+  .btn { 
+    width:100%; 
+    padding:14px; 
+    border-radius:8px; 
+    border:none; 
+    font-weight:bold; 
+    font-size:16px; 
+    cursor:pointer; 
+    margin-bottom:12px; 
+    display:block;
+    text-decoration: none;
+  }
+  
+  .btn-verde { background:#2ecc71; color:#fff; }
+  .btn-azul { background:#00bcd4; color:#fff; }
+  
+  /* Botón de descarga sutil */
+  .btn-download { 
+    background: transparent; 
+    border: 1px solid #444; 
+    color: #888; 
+    font-size: 14px;
+    margin-top: 10px;
   }
 
-  .logo { width:100px; margin-bottom:15px; border-radius: 20px; animation: fadeIn 2s; }
-  
-  .login-card { background:#111; padding:30px; border-radius:25px; border:1px solid #333; width:85%; max-width:360px; text-align:center; position: relative; z-index: 10; box-shadow: 0 20px 50px rgba(0,200,83,0.1); }
-  
-  h1 { font-size:26px; color:#00c853; margin-bottom:10px; font-weight: 800; }
-  p { color: #888; font-size: 14px; margin-bottom: 25px; }
-  
-  input { width:100%; padding:18px; border-radius:15px; border:1px solid #444; background:#222; color:#fff; font-size:20px; margin-bottom:20px; box-sizing:border-box; text-align:center; transition: 0.3s; }
-  input:focus { border-color: #00c853; outline: none; background: #2a2a2a; }
-  
-  .btn-choice { width:100%; padding:18px; border-radius:15px; border:none; font-weight:bold; font-size:16px; cursor:pointer; margin-bottom:15px; display:flex; align-items:center; justify-content:center; gap:12px; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-  
-  .btn-choice:active { transform: scale(0.96); }
-  .btn-pasajero { background:#00c853; color:#000; box-shadow: 0 4px 15px rgba(0,200,83,0.3); }
-  .btn-chofer { background:#1a1a1a; color:#fff; border: 1px solid #444; }
-
-  /* Pantalla de carga */
-  #loader { display:none; color: #00c853; font-weight: bold; margin-top: 10px; }
-
-  /* Estilos iOS Prompt igual a los tuyos */
-  #ios-prompt { display: none; position: fixed; bottom: 30px; left: 20px; right: 20px; background: #fff; color: #000; padding: 15px; border-radius: 18px; text-align: center; z-index: 9999; animation: slideUp 0.5s ease-out; }
-  @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  #ios-prompt { 
+    display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; 
+    background: #fff; color: #000; padding: 15px; border-radius: 12px; text-align: center; 
+  }
 </style>
 </head>
 <body>
 
-  <div class="car-container">
-    <div class="car-icon">🚖</div>
-  </div>
-
-  <img src="/public/IMG_20260103_204207.png" class="logo">
-
-  <div class="login-card">
-    <h1>Smart</h1>
-    <p>Traslados seguros y rápidos</p>
+  <div class="card">
+    <h2>Registro</h2>
     
-    <input type="tel" id="telefono" placeholder="Número de celular" maxlength="15">
+    <input type="tel" id="telefono" placeholder="Número de celular">
     
-    <div id="loader">Verificando...</div>
+    <select id="rol">
+        <option value="pasajero">Pasajero</option>
+        <option value="chofer">Chofer</option>
+    </select>
 
-    <button class="btn-choice btn-pasajero" id="btn-p" onclick="procesarIngreso('pasajero')">
-        <span>📍</span> Buscar Traslado
-    </button>
-    
-    <button class="btn-choice btn-chofer" id="btn-c" onclick="procesarIngreso('chofer')">
-        <span>🚖</span> Soy Chofer
-    </button>
+    <button class="btn btn-verde" onclick="enviarRegistro()">Registrarse</button>
+    <button class="btn btn-azul" onclick="volverLogin()">Volver a Login</button>
+
+    <a href="#" id="descargaLink" class="btn btn-download">Descargar App</a>
   </div>
 
   <div id="ios-prompt">
-    <strong>¡Instalá la App!</strong><br>
-    Tocá <img src="https://img.icons8.com/ios/50/000000/sent.png" style="width:18px"> y luego <strong>"Agregar al inicio"</strong>
-    <span onclick="this.parentElement.style.display='none'" style="display:block; margin-top:10px; font-size:12px; color:blue;">Cerrar</span>
+    Tocá compartir y luego <strong>"Agregar al inicio"</strong> para instalar.
+    <br><small onclick="this.parentElement.style.display='none'">Cerrar</small>
   </div>
 
 <script>
-// --- LÓGICA DE LOGIN REAL ---
+// --- VÍNCULOS Y LÓGICA CON TU SERVIDOR ---
 
-async function procesarIngreso(rolElegido) {
+async function enviarRegistro() {
     const tel = document.getElementById("telefono").value.trim();
-    if (tel.length < 8) {
-        alert("Ingresá un número válido.");
-        return;
-    }
+    const rolElegido = document.getElementById("rol").value;
 
-    // Bloquear botones y mostrar carga
-    document.getElementById("btn-p").disabled = true;
-    document.getElementById("btn-c").disabled = true;
-    document.getElementById("loader").style.display = "block";
+    if (tel.length < 8) return alert("Ingresá un teléfono válido.");
 
     try {
-        // 1. Registrar o verificar en el servidor
         const res = await fetch('/register', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -100,49 +113,31 @@ async function procesarIngreso(rolElegido) {
         const data = await res.json();
 
         if (data.mensaje === "Ok") {
-            // 2. Hacer Login para obtener datos frescos
-            const resLogin = await fetch('/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telefono: tel })
-            });
-            const user = await resLogin.json();
-
-            if (resLogin.ok) {
-                // Guardar sesión local
-                localStorage.setItem("sesion", JSON.stringify({
-                    telefono: user.telefono,
-                    tipo: user.rol,
-                    nombre: user.nombre || "",
-                    foto: user.foto || ""
-                }));
-
-                // 3. Redirección final
-                window.location.href = (user.rol === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
-            } else {
-                alert(user.error || "Error al entrar");
-            }
+            // Guardar sesión y redirigir según el rol elegido
+            localStorage.setItem("sesion", JSON.stringify({ telefono: tel, tipo: rolElegido }));
+            window.location.href = (rolElegido === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
+        } else {
+            alert("Error al registrar");
         }
     } catch (e) {
-        alert("Error de conexión. Reintentá.");
-    } finally {
-        document.getElementById("btn-p").disabled = false;
-        document.getElementById("btn-c").disabled = false;
-        document.getElementById("loader").style.display = "none";
+        alert("Error de conexión");
     }
 }
 
-// Auto-login al cargar
-window.onload = () => {
-    const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
-    if(sesion.telefono && sesion.tipo){
-        window.location.href = (sesion.tipo === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
-    }
-};
+function volverLogin() {
+    window.location.href = "/login.html"; // O la ruta de tu login
+}
 
-// Detección iPhone igual
-if (/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !navigator.standalone) {
-  setTimeout(() => document.getElementById('ios-prompt').style.display = 'block', 2000);
+// --- DESCARGA SEGÚN CELULAR ---
+const link = document.getElementById('descargaLink');
+if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    link.onclick = (e) => {
+        e.preventDefault();
+        document.getElementById('ios-prompt').style.display = 'block';
+    };
+} else {
+    link.href = "/public/smart-traslados.apk"; 
+    link.setAttribute("download", "SmartTraslados.apk");
 }
 </script>
 </body>
