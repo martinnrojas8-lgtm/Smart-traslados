@@ -126,7 +126,7 @@
     </select>
 
     <button class="btn btn-verde" onclick="enviarRegistro()">Registrarse</button>
-    <button class="btn btn-azul" onclick="volverLogin()">Volver a Login</button>
+    <button class="btn btn-azul" onclick="volverLogin()">Ingresar</button>
 
     <a href="#" id="descargaLink" class="btn btn-download">Descargar App</a>
   </div>
@@ -138,6 +138,7 @@
   </div>
 
 <script>
+// FUNCIÓN PARA NUEVOS USUARIOS
 async function enviarRegistro() {
     const tel = document.getElementById("telefono").value.trim();
     const rolElegido = document.getElementById("rol").value;
@@ -157,7 +158,32 @@ async function enviarRegistro() {
     } catch (e) { alert("Error de conexión"); }
 }
 
-function volverLogin() { window.location.href = "login.html"; }
+// FUNCIÓN PARA USUARIOS YA EXISTENTES (BOTÓN INGRESAR)
+async function volverLogin() {
+    const tel = document.getElementById("telefono").value.trim();
+    const rolElegido = document.getElementById("rol").value;
+
+    if (tel.length < 8) return alert("Por favor, ingresá tu número registrado.");
+
+    try {
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ telefono: tel, rol: rolElegido })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            localStorage.setItem("sesion", JSON.stringify({ telefono: tel, tipo: rolElegido }));
+            window.location.href = (rolElegido === "chofer") ? "/chofer/index.html" : "/pasajero/index.html";
+        } else {
+            alert(data.mensaje || "Usuario no encontrado. Por favor, regístrate.");
+        }
+    } catch (e) {
+        alert("Error de conexión al intentar ingresar.");
+    }
+}
 
 // LÓGICA DE INSTALACIÓN / DESCARGA
 const link = document.getElementById('descargaLink');
@@ -167,15 +193,14 @@ if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         document.getElementById('ios-prompt').style.display = 'block';
     };
 } else {
-    // Apunta al archivo APK directamente en la misma carpeta
     link.href = "smart-traslados.apk"; 
     link.setAttribute("download", "SmartTraslados.apk");
     link.onclick = () => {
-        alert("La descarga comenzará. Al finalizar, abre el archivo desde tus notificaciones para instalar la aplicación.");
+        alert("La descarga comenzará. Al finalizar, abre el archivo para instalar.");
     };
 }
 
-// Registrar el Service Worker para permitir la instalación PWA
+// Service Worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .then(() => console.log("Service Worker registrado"))
