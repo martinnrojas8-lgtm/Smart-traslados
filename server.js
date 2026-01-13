@@ -32,11 +32,21 @@ const UsuarioSchema = new mongoose.Schema({
     pagoActivo: { type: Boolean, default: false }, 
     vencimientoPago: { type: Date, default: null },
     estadoRevision: { type: String, default: "pendiente" },
-    aprobado: { type: Boolean, default: false }, // Para el tilde verde
-    bloqueado: { type: Boolean, default: false }, // Para el candado rojo
+    aprobado: { type: Boolean, default: false },
+    bloqueado: { type: Boolean, default: false },
     fechaRegistro: { type: Date, default: Date.now }
 });
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
+
+const ViajeSchema = new mongoose.Schema({
+    fecha: { type: String, default: () => new Date().toLocaleDateString() },
+    hora: { type: String, default: () => new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) },
+    chofer: String,
+    pasajero: String,
+    estado: { type: String, default: "pendiente" }, 
+    timestamp: { type: Date, default: Date.now }
+});
+const Viaje = mongoose.model('Viaje', ViajeSchema);
 
 const TokenSchema = new mongoose.Schema({
     codigo: { type: String, unique: true },
@@ -53,13 +63,18 @@ const TarifaSchema = new mongoose.Schema({
 });
 const Tarifa = mongoose.model('Tarifa', TarifaSchema);
 
-// --- RUTAS DE ARCHIVOS ESTÁTICOS ---
+// --- RUTAS ---
 app.use(express.static(path.join(__dirname, 'Public')));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.use('/chofer', express.static(path.join(__dirname, 'chofer')));
 app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
-// --- API PANEL ADMIN (NUEVAS FUNCIONES) ---
+app.get('/obtener-viajes', async (req, res) => {
+    try {
+        const viajes = await Viaje.find().sort({ timestamp: -1 }).limit(50);
+        res.json(viajes);
+    } catch (e) { res.status(500).send(e); }
+});
 
 app.post('/aprobar-chofer', async (req, res) => {
     try {
@@ -82,8 +97,6 @@ app.post('/bloquear-usuario', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// --- API EXISTENTE ---
-
 app.post('/actualizar-tarifas', async (req, res) => {
     try {
         const { precioBase, precioKm } = req.body;
@@ -95,11 +108,7 @@ app.post('/actualizar-tarifas', async (req, res) => {
 app.get('/obtener-tarifas', async (req, res) => {
     try {
         const tarifas = await Tarifa.findOne();
-        if (tarifas) {
-            res.json(tarifas);
-        } else {
-            res.json({ precioBase: 3500, precioKm: 900 });
-        }
+        res.json(tarifas || { precioBase: 3500, precioKm: 900 });
     } catch (e) { res.status(500).json({ error: "Error al leer" }); }
 });
 
@@ -108,21 +117,13 @@ app.post('/login', async (req, res) => {
         const tel = req.body.telefono.trim();
         const rolElegido = req.body.rol.toLowerCase().trim();
         const usuario = await Usuario.findOne({ telefono: tel, rol: rolElegido });
-        
         if (usuario) {
             if (usuario.bloqueado) return res.status(403).json({ mensaje: "Usuario bloqueado" });
-            
-            let pagoActivo = false;
-            if (usuario.vencimientoPago && usuario.vencimientoPago > new Date()) {
-                pagoActivo = true;
-            }
-            usuario.pagoActivo = pagoActivo;
+            usuario.pagoActivo = usuario.vencimientoPago && usuario.vencimientoPago > new Date();
             await usuario.save();
             res.json({ mensaje: "Ok", usuario: usuario });
-        } else {
-            res.status(404).json({ mensaje: "Usuario no encontrado" });
-        }
-    } catch (e) { res.status(500).json({ error: "Error en servidor" }); }
+        } else { res.status(404).json({ mensaje: "Usuario no encontrado" }); }
+    } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
 app.post('/register', async (req, res) => {
@@ -171,38 +172,25 @@ app.post('/validar-token', async (req, res) => {
         const { codigo, telefono } = req.body;
         const t = await Token.findOne({ codigo: codigo.trim(), usado: false });
         if (t) {
-            const ahora = new Date();
-            const vencimiento = new Date(ahora.getTime() + (24 * 60 * 60 * 1000));
-            t.usado = true;
-            t.usadoPor = telefono;
-            t.fechaUso = ahora;
+            const vencimiento = new Date(Date.now() + (24 * 60 * 60 * 1000));
+            t.usado = true; t.usadoPor = telefono; t.fechaUso = new Date();
             await t.save();
             await Usuario.findOneAndUpdate({ telefono }, { pagoActivo: true, vencimientoPago: vencimiento });
             res.json({ ok: true, vencimiento: vencimiento });
-        } else { 
-            res.status(400).json({ ok: false, mensaje: "Código inválido o ya usado" }); 
-        }
-    } catch (e) { res.status(500).json({ error: "Error al validar" }); }
+        } else { res.status(400).json({ ok: false, mensaje: "Inválido" }); }
+    } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
 app.get('/estado-suscripcion/:telefono', async (req, res) => {
     try {
         const u = await Usuario.findOne({ telefono: req.params.telefono });
         if (!u) return res.status(404).send();
-        res.json({ 
-            pagoActivo: u.vencimientoPago > new Date(),
-            vencimiento: u.vencimientoPago 
-        });
+        res.json({ pagoActivo: u.vencimientoPago > new Date(), vencimiento: u.vencimientoPago });
     } catch (e) { res.status(500).send(); }
 });
 
-app.get('/admin-panel', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin', 'index-admin.html'));
-});
-
-app.get('*', (req, res) => { 
-    res.sendFile(path.join(__dirname, 'Public', 'login.html')); 
-});
+app.get('/admin-panel', (req, res) => { res.sendFile(path.join(__dirname, 'admin', 'index-admin.html')); });
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'Public', 'login.html')); });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servidor Smart Online en puerto ${PORT} 🚀`));
