@@ -22,6 +22,16 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 .btn{ padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight: bold; width: 100%; margin-top: 10px; }
 .btn-ok{ background:#00c853; color: #000; }
 .btn-del{ background:#f44336; color: #fff; }
+
+/* ESTILOS DE LA FICHA PROFESIONAL */
+#contenedorFicha { 
+    display: none; flex-direction: column; align-items: center; 
+    background: #000; padding: 20px; border-radius: 15px; 
+    border: 2px solid #00c853; max-width: 300px; margin: 20px auto;
+}
+.ficha-logo { width: 80px; border-radius: 15px; margin-bottom: 10px; }
+.ficha-codigo { font-size: 32px; font-weight: bold; color: #00c853; letter-spacing: 5px; margin: 10px 0; }
+.ficha-info { font-size: 12px; color: #888; text-transform: uppercase; }
 </style>
 </head>
 
@@ -33,11 +43,8 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
     <button onclick="mostrar('inicio')">Inicio</button>
     <button onclick="mostrar('conductores')">Conductores</button>
     <button onclick="mostrar('pasajeros')">Pasajeros</button>
-    <button onclick="mostrar('viajes')">Viajes</button>
-    <button onclick="mostrar('pagos')">Historial Cobros</button>
+    <button onclick="mostrar('pagos')">Generar Códigos</button>
     <button onclick="mostrar('tarifas')">Tarifas</button>
-    <button onclick="mostrar('mensajes')">Mensajes</button>
-    <button onclick="mostrar('config')">Configuración</button>
 </div>
 
 <div id="inicio" class="pantalla activa">
@@ -61,15 +68,20 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
     </div>
 </div>
 
-<div id="pasajeros" class="pantalla">
-    <div class="card">
-        <h3>Pasajeros registrados</h3>
-        <table id="tablaPasajeros">
-            <tr>
-                <th>Nombre</th>
-                <th>Teléfono</th>
-            </tr>
-        </table>
+<div id="pagos" class="pantalla">
+    <div class="card" style="text-align: center;">
+        <h3>Generar Activación 24hs</h3>
+        <p style="font-size: 13px; color: #888;">Crea un código único para el chofer</p>
+        <button class="btn btn-ok" onclick="generarNuevoCodigo()">GENERAR CÓDIGO NUEVO</button>
+        
+        <div id="contenedorFicha">
+            <img src="../file_000000008fd0720eb71af76359ccb359.png" class="ficha-logo">
+            <div class="ficha-info">Smart Traslados</div>
+            <div id="txtFichaCodigo" class="ficha-codigo">000000</div>
+            <div class="ficha-info" style="color: #fff;">Válido por 24 Horas</div>
+            <p style="font-size: 9px; color: #555; margin-top: 10px;">Uso único - Activación inmediata</p>
+        </div>
+        <p id="instruccionFicha" style="display:none; font-size: 11px; color: #00c853;">↑ Sacale captura y enviala por WhatsApp ↑</p>
     </div>
 </div>
 
@@ -84,10 +96,17 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
     </div>
 </div>
 
-<div id="viajes" class="pantalla"><div class="card"><h3>Próximamente: Historial de viajes</h3></div></div>
-<div id="pagos" class="pantalla"><div class="card"><h3>Próximamente: Historial de cobros</h3></div></div>
-<div id="mensajes" class="pantalla"><div class="card"><h3>Enviar notificaciones</h3></div></div>
-<div id="config" class="pantalla"><div class="card"><h3>Configuración del Sistema</h3></div></div>
+<div id="pasajeros" class="pantalla">
+    <div class="card">
+        <h3>Pasajeros registrados</h3>
+        <table id="tablaPasajeros">
+            <tr>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+            </tr>
+        </table>
+    </div>
+</div>
 
 <script>
 function mostrar(id){
@@ -95,7 +114,29 @@ function mostrar(id){
     document.getElementById(id).classList.add('activa');
 }
 
-// 1. CARGAR TARIFAS DESDE EL SERVIDOR AL ABRIR
+// NUEVA FUNCIÓN: GENERAR CÓDIGO ESTÉTICO
+async function generarNuevoCodigo() {
+    // Generar 6 números aleatorios
+    const nuevoCod = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    try {
+        const res = await fetch('/crear-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: nuevoCod })
+        });
+        const data = await res.json();
+        
+        if(data.mensaje) {
+            document.getElementById('txtFichaCodigo').innerText = nuevoCod;
+            document.getElementById('contenedorFicha').style.display = 'flex';
+            document.getElementById('instruccionFicha').style.display = 'block';
+        }
+    } catch (e) {
+        alert("Error al generar código");
+    }
+}
+
 async function cargarTarifasAdmin() {
     try {
         const res = await fetch('/obtener-tarifas');
@@ -105,17 +146,10 @@ async function cargarTarifasAdmin() {
     } catch (e) { console.error("Error cargando tarifas"); }
 }
 
-// 2. GUARDAR TARIFAS EN EL SERVIDOR (MONGODB)
 async function guardarTarifas() {
     const pBase = parseInt(document.getElementById('precioBase').value);
     const pKm = parseInt(document.getElementById('precioKm').value);
-
     if(!pBase || !pKm) return alert("Por favor completa los precios");
-
-    const btn = document.getElementById('btnGuardarTarifas');
-    btn.innerText = "GUARDANDO...";
-    btn.disabled = true;
-
     try {
         const res = await fetch('/actualizar-tarifas', {
             method: 'POST',
@@ -123,54 +157,40 @@ async function guardarTarifas() {
             body: JSON.stringify({ precioBase: pBase, precioKm: pKm })
         });
         const data = await res.json();
-        if(data.mensaje === "Ok") {
-            alert("✅ Tarifas actualizadas en todo el sistema");
-        }
-    } catch (e) {
-        alert("❌ Error al conectar con el servidor");
-    } finally {
-        btn.innerText = "GUARDAR EN BASE DE DATOS";
-        btn.disabled = false;
-    }
+        if(data.mensaje === "Ok") alert("✅ Tarifas actualizadas");
+    } catch (e) { alert("❌ Error"); }
 }
 
-// 3. CARGAR DATOS DE USUARIOS DESDE MONGODB
 async function cargarDatosGlobales() {
     try {
         const res = await fetch('/obtener-usuarios');
         const usuarios = await res.json();
-
         const conds = usuarios.filter(u => u.rol === 'chofer');
         const pasas = usuarios.filter(u => u.rol === 'pasajero');
 
         document.getElementById('cTotal').innerText = conds.length;
         document.getElementById('pTotal').innerText = pasas.length;
 
-        // Tabla Conductores
         let tC = document.getElementById('tablaConductores');
-        tC.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Estado Pago</th></tr>`;
+        tC.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Estado</th></tr>`;
         conds.forEach(c => {
+            // Verificamos si el pago está activo por fecha
+            const estaActivo = c.vencimientoPago && new Date(c.vencimientoPago) > new Date();
             tC.innerHTML += `<tr>
                 <td>${c.nombre || 'S/N'}</td>
                 <td>${c.telefono}</td>
-                <td class="${c.pagoActivo?'estado-ok':'estado-off'}">${c.pagoActivo?'Al día':'Pendiente'}</td>
+                <td class="${estaActivo?'estado-ok':'estado-off'}">${estaActivo?'ACTIVO':'VENCIDO'}</td>
             </tr>`;
         });
 
-        // Tabla Pasajeros
         let tP = document.getElementById('tablaPasajeros');
         tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th></tr>`;
         pasas.forEach(p => {
-            tP.innerHTML += `<tr>
-                <td>${p.nombre || 'S/N'}</td>
-                <td>${p.telefono}</td>
-            </tr>`;
+            tP.innerHTML += `<tr><td>${p.nombre || 'S/N'}</td><td>${p.telefono}</td></tr>`;
         });
-
     } catch (e) { console.error("Error cargando usuarios"); }
 }
 
-// INICIO AUTOMÁTICO
 window.onload = () => {
     cargarTarifasAdmin();
     cargarDatosGlobales();
