@@ -6,7 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="file_000000008fd0720eb71af76359ccb359.png">
 <meta name="theme-color" content="#121921">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <style>
   * { box-sizing: border-box; }
@@ -29,103 +32,3 @@
   .btn-download { background: transparent; border: 1px solid #3d4752; color: #888; font-size: 14px; margin-top: 5px; }
   .btn:active { transform: scale(0.96); }
 </style>
-</head>
-<body>
-
-  <div class="card">
-    <div class="logo-container">
-      <img src="file_000000008fd0720eb71af76359ccb359.png" alt="Smart Traslados" class="logo-img">
-    </div>
-
-    <h2>Registro</h2>
-    
-    <input type="tel" id="telefono" placeholder="Número de celular">
-    
-    <select id="rol" onchange="toggleNombre()">
-        <option value="pasajero">Pasajero</option>
-        <option value="chofer">Chofer</option>
-    </select>
-
-    <input type="text" id="campoNombre" placeholder="Tu nombre completo">
-
-    <button class="btn btn-verde" onclick="enviarRegistro()">Registrarse</button>
-    <button class="btn btn-azul" onclick="volverLogin()">Ingresar</button>
-
-    <a href="smart-traslados.apk" download class="btn btn-download">Descargar App</a>
-  </div>
-
-<script>
-// 1. AUTO-LOGIN: Si ya existe sesión, redirigir automáticamente
-function verificarSesion() {
-    const sesion = JSON.parse(localStorage.getItem("sesion"));
-    if (sesion && sesion.telefono && sesion.tipo) {
-        console.log("Sesión activa detectada, redirigiendo...");
-        window.location.href = (sesion.tipo === "chofer") ? "/chofer/perfil.html" : "/pasajero/index.html";
-    }
-}
-
-function toggleNombre() {
-    const rol = document.getElementById("rol").value;
-    const campoNombre = document.getElementById("campoNombre");
-    campoNombre.style.display = (rol === "pasajero") ? "block" : "none";
-}
-
-// Ejecutar al cargar
-window.onload = () => {
-    verificarSesion();
-    toggleNombre();
-};
-
-async function enviarRegistro() {
-    const tel = document.getElementById("telefono").value.trim();
-    const rolElegido = document.getElementById("rol").value;
-    const nombrePasajero = document.getElementById("campoNombre").value.trim();
-
-    if (tel.length < 8) return alert("Ingresá un teléfono válido.");
-    if (rolElegido === "pasajero" && !nombrePasajero) return alert("Por favor, ingresá tu nombre.");
-    
-    try {
-        const res = await fetch('/register', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                telefono: tel, 
-                rol: rolElegido,
-                nombre: (rolElegido === "pasajero") ? nombrePasajero : "" 
-            })
-        });
-        const data = await res.json();
-        if (data.mensaje === "Ok") {
-            // Guardamos sesión para que lo "recuerde"
-            localStorage.setItem("sesion", JSON.stringify({ telefono: tel, tipo: rolElegido }));
-            window.location.href = (rolElegido === "chofer") ? "/chofer/perfil.html" : "/pasajero/index.html";
-        } else { alert("Error al registrar"); }
-    } catch (e) { alert("Error de conexión"); }
-}
-
-async function volverLogin() {
-    const tel = document.getElementById("telefono").value.trim();
-    const rolElegido = document.getElementById("rol").value;
-
-    if (tel.length < 8) return alert("Por favor, ingresá tu número registrado.");
-
-    try {
-        const res = await fetch('/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ telefono: tel, rol: rolElegido })
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-            // Guardamos sesión al ingresar con éxito
-            localStorage.setItem("sesion", JSON.stringify({ telefono: tel, tipo: rolElegido }));
-            window.location.href = (rolElegido === "chofer") ? "/chofer/perfil.html" : "/pasajero/index.html";
-        } else {
-            alert(data.mensaje || "Usuario no encontrado.");
-        }
-    } catch (e) { alert("Error de conexión"); }
-}
-</script>
-</body>
-</html>
