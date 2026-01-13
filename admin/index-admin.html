@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Traslados – Panel Propietario</title>
-
 <style>
 body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
 header{ background:#111; padding:15px; text-align:center; font-size:22px; font-weight:bold; border-bottom: 2px solid #4caf50; }
@@ -22,17 +21,13 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 .estado-pendiente { color: #ff9800; font-weight: bold; }
 .btn-ok{ background:#4caf50; color: #fff; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 .btn-accion{ padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-right: 2px; }
-
-/* MODAL DE PERFIL */
-#modalPerfil { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto; padding:20px; box-sizing:border-box; }
+#modalPerfil { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto; padding:20px; }
 .modal-contenido { background:#111; padding:20px; border-radius:10px; border:1px solid #4caf50; max-width:500px; margin:auto; }
 .foto-legajo { width:100%; border-radius:8px; margin-bottom:15px; border:1px solid #333; }
-
 #contenedorFicha { display: none; flex-direction: column; align-items: center; background: #fff; padding: 20px; border-radius: 15px; max-width: 280px; margin: 20px auto; color: #000; text-align: center; border: 2px solid #4caf50; }
 .ficha-codigo { font-size: 32px; font-weight: bold; color: #4caf50; letter-spacing: 4px; margin: 10px 0; }
 </style>
 </head>
-
 <body>
 
 <header>📊 Smart Traslados – Panel General</header>
@@ -48,105 +43,21 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
     <button onclick="mostrar('config')">Configuración</button>
 </div>
 
-<div id="modalPerfil">
-    <div class="modal-contenido">
-        <h3 id="nomPerfil" style="margin-top:0; color:#4caf50;">Perfil Chofer</h3>
-        <p><b>Carnet de Conducir:</b></p>
-        <img id="imgCarnet" class="foto-legajo" src="">
-        <p><b>Seguro:</b></p>
-        <img id="imgSeguro" class="foto-legajo" src="">
-        <p><b>Tarjeta del Auto:</b></p>
-        <img id="imgTarjeta" class="foto-legajo" src="">
-        <button class="btn-ok" onclick="cerrarPerfil()">CERRAR PERFIL</button>
-    </div>
-</div>
+<div id="modalPerfil"><div class="modal-contenido"><h3 id="nomPerfil" style="margin-top:0; color:#4caf50;"></h3><p>Carnet:</p><img id="imgCarnet" class="foto-legajo"><p>Seguro:</p><img id="imgSeguro" class="foto-legajo"><p>Tarjeta:</p><img id="imgTarjeta" class="foto-legajo"><button class="btn-ok" onclick="cerrarPerfil()">CERRAR</button></div></div>
 
-<div id="inicio" class="pantalla activa">
-    <div class="card">
-        <h3>Resumen operativo</h3>
-        <p>Conductores registrados: <b id="cActivos">0</b></p>
-        <p>Pasajeros registrados: <b id="pTotal">0</b></p>
-    </div>
-</div>
+<div id="inicio" class="pantalla activa"><div class="card"><h3>Resumen operativo</h3><p>Conductores: <b id="cActivos">0</b></p><p>Pasajeros: <b id="pTotal">0</b></p></div></div>
 
-<div id="conductores" class="pantalla">
-    <div class="card">
-        <h3>Gestión de Conductores</h3>
-        <div style="overflow-x:auto;">
-            <table id="tablaConductores">
-                <tr><th>Chofer (Ver Perfil)</th><th>Estado</th><th>Recaudado</th><th>Acción</th></tr>
-            </table>
-        </div>
-    </div>
-</div>
+<div id="conductores" class="pantalla"><div class="card"><h3>Gestión de Conductores</h3><table id="tablaConductores"><tr><th>Chofer</th><th>Estado</th><th>Acción</th></tr></table></div></div>
 
-<div id="pasajeros" class="pantalla">
-    <div class="card">
-        <h3>Lista de Pasajeros</h3>
-        <div style="overflow-x:auto;">
-            <table id="tablaPasajeros">
-                <tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>
-            </table>
-        </div>
-    </div>
-</div>
+<div id="pasajeros" class="pantalla"><div class="card"><h3>Lista de Pasajeros</h3><table id="tablaPasajeros"><tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr></table></div></div>
 
-<div id="viajes" class="pantalla">
-    <div class="card"><h3>Historial de Viajes</h3><p>Registro de rutas en tiempo real.</p></div>
-</div>
+<div id="viajes" class="pantalla"><div class="card"><h3>Historial de Viajes Reales</h3><div style="overflow-x:auto;"><table id="tablaViajes"><tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Estado</th></tr></table></div></div></div>
 
-<div id="pagos" class="pantalla">
-    <div class="card" style="text-align:center;">
-        <h3>Generar Pin de Activación 24hs</h3>
-        <button class="btn-ok" onclick="generarNuevoCodigo()">GENERAR NUEVO CÓDIGO</button>
-        <div id="contenedorFicha">
-            <div style="font-weight:bold; color:#333;">Smart Traslados</div>
-            <div id="txtFichaCodigo" class="ficha-codigo">000000</div>
-            <div style="font-size: 12px; color:#666;">VÁLIDO POR 24 HORAS</div>
-        </div>
-    </div>
-</div>
+<div id="pagos" class="pantalla"><div class="card" style="text-align:center;"><h3>Generar Pin 24hs</h3><button class="btn-ok" onclick="generarNuevoCodigo()">GENERAR PIN</button><div id="contenedorFicha"><div id="txtFichaCodigo" class="ficha-codigo">000000</div></div></div></div>
 
-<div id="tarifas" class="pantalla">
-    <div class="card">
-        <h3>Tarifas de la App</h3>
-        <label>Precio base por viaje</label>
-        <input type="number" id="precioBase">
-        <label>Precio por km</label>
-        <input type="number" id="precioKm">
-        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-        <label>Monto suscripción 24hs (Info)</label>
-        <input type="number" id="montoFijo">
-        <button class="btn-ok" onclick="guardarTarifas()">Guardar en servidor</button>
-    </div>
-</div>
+<div id="tarifas" class="pantalla"><div class="card"><h3>Tarifas</h3><label>Base</label><input type="number" id="precioBase"><label>Por Km</label><input type="number" id="precioKm"><button class="btn-ok" onclick="guardarTarifas()">Guardar en Servidor</button></div></div>
 
-<div id="mensajes" class="pantalla">
-    <div class="card">
-        <h3>Mensajería Masiva</h3>
-        <select id="selectDestino">
-            <option value="choferes">Todos los conductores</option>
-            <option value="pasajeros">Todos los pasajeros</option>
-        </select>
-        <input type="text" id="msgMasivo" placeholder="Escribí el mensaje">
-        <button class="btn-ok" onclick="alert('Mensaje enviado')">Enviar a todos</button>
-    </div>
-</div>
-
-<div id="config" class="pantalla">
-    <div class="card">
-        <h3>Configuración de Contacto</h3>
-        <label>Nombre de la app</label>
-        <input id="confApp">
-        <label>Teléfono soporte</label>
-        <input id="confTel">
-        <label>Email soporte</label>
-        <input id="confMail">
-        <label>Alias / CBU para Cobros</label>
-        <input id="confAlias">
-        <button class="btn-ok" onclick="guardarConfiguracion()">Guardar configuración</button>
-    </div>
-</div>
+<div id="config" class="pantalla"><div class="card"><h3>Configuración</h3><label>App</label><input id="confApp"><label>Teléfono</label><input id="confTel"><label>Alias</label><input id="confAlias"><button class="btn-ok" onclick="guardarConfiguracion()">Guardar Configuración</button></div></div>
 
 <script>
 let listaUsuariosGlobal = [];
@@ -154,6 +65,7 @@ let listaUsuariosGlobal = [];
 function mostrar(id){
     document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
     document.getElementById(id).classList.add('activa');
+    if(id === 'viajes') cargarViajesReales();
 }
 
 async function cargarDatosReales() {
@@ -162,40 +74,20 @@ async function cargarDatosReales() {
         listaUsuariosGlobal = await res.json();
         const conds = listaUsuariosGlobal.filter(u => u.rol === 'chofer');
         const pasas = listaUsuariosGlobal.filter(u => u.rol === 'pasajero');
-
         document.getElementById('cActivos').innerText = conds.length;
         document.getElementById('pTotal').innerText = pasas.length;
-
         actualizarTablaConductores(conds);
         actualizarTablaPasajeros(pasas);
-
-    } catch (e) { console.error("Error al cargar datos"); }
+    } catch (e) { console.error("Error cargando usuarios"); }
 }
 
 function actualizarTablaConductores(conds) {
     let tC = document.getElementById('tablaConductores');
-    tC.innerHTML = `<tr><th>Chofer (Ver Perfil)</th><th>Estado</th><th>Recaudado</th><th>Acción</th></tr>`;
+    tC.innerHTML = `<tr><th>Chofer</th><th>Estado</th><th>Acción</th></tr>`;
     conds.forEach(c => {
         const pagoAlDia = c.vencimientoPago && new Date(c.vencimientoPago) > new Date();
-        const docAprobada = c.aprobado === true;
-
-        tC.innerHTML += `<tr id="fila-${c.telefono}">
-            <td>
-                <a href="#" onclick="verPerfilCompleto('${c.telefono}')" style="color:#4caf50; text-decoration:none;">
-                    <b>${c.nombre || 'S/N'}</b>
-                </a><br><small>${c.telefono}</small>
-            </td>
-            <td>
-                <span id="doc-${c.telefono}" class="${docAprobada?'estado-ok':'estado-pendiente'}">${docAprobada?'DOC: OK':'DOC: PEND'}</span><br>
-                <span class="${pagoAlDia?'estado-ok':'estado-off'}">${pagoAlDia?'PAGO: OK':'PAGO: VENC'}</span>
-            </td>
-            <td>$0</td>
-            <td>
-                <button class="btn-accion" style="background:#4caf50;" onclick="aprobarDocumentacion('${c.telefono}')">✔</button>
-                <button class="btn-accion" style="background:#25d366;" onclick="window.open('https://wa.me/${c.telefono}')">✉</button>
-                <button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${c.telefono}')">✖</button>
-            </td>
-        </tr>`;
+        const docOk = c.aprobado === true;
+        tC.innerHTML += `<tr id="fila-${c.telefono}"><td><a href="#" onclick="verPerfilCompleto('${c.telefono}')" style="color:#4caf50;"><b>${c.nombre || 'S/N'}</b></a><br><small>${c.telefono}</small></td><td><span class="${docOk?'estado-ok':'estado-pendiente'}">${docOk?'DOC: OK':'DOC: PEND'}</span><br><span class="${pagoAlDia?'estado-ok':'estado-off'}">${pagoAlDia?'PAGO: OK':'PAGO: VENC'}</span></td><td><button class="btn-accion" style="background:#4caf50;" onclick="aprobarDocumentacion('${c.telefono}')">✔</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${c.telefono}')">✖</button></td></tr>`;
     });
 }
 
@@ -204,128 +96,80 @@ function actualizarTablaPasajeros(pasas) {
     tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>`;
     pasas.forEach(p => { 
         const estaBloqueado = p.bloqueado === true;
-        tP.innerHTML += `<tr id="fila-${p.telefono}">
-            <td>${p.nombre || 'S/N'}</td>
-            <td>${p.telefono}</td>
-            <td>
-                <button id="btnLock-${p.telefono}" class="btn-accion" title="Bloquear" style="background:${estaBloqueado ? '#f44336' : '#ff9800'};" onclick="bloquearPasajero('${p.telefono}')">🔒</button>
-                <button class="btn-accion" title="Eliminar" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">✖</button>
-            </td>
-        </tr>`; 
+        tP.innerHTML += `<tr id="fila-${p.telefono}"><td>${p.nombre || 'S/N'}</td><td>${p.telefono}</td><td><button id="btnLock-${p.telefono}" class="btn-accion" style="background:${estaBloqueado ? '#f44336' : '#ff9800'};" onclick="bloquearPasajero('${p.telefono}')">🔒</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">✖</button></td></tr>`; 
     });
 }
 
-async function bloquearPasajero(tel) {
-    if(confirm("¿Bloquear este número permanentemente? No podrá registrarse de nuevo.")) {
-        const btn = document.getElementById(`btnLock-${tel}`);
-        if(btn) btn.style.background = "#f44336"; // Cambio visual a rojo inmediato
-        
-        try {
-            await fetch('/bloquear-usuario', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telefono: tel })
-            });
-            alert("Bloqueo registrado en el servidor.");
-        } catch (e) { alert("Error al conectar con servidor"); }
-    }
+async function cargarViajesReales() {
+    try {
+        const res = await fetch('/obtener-viajes');
+        const viajes = await res.json();
+        let tV = document.getElementById('tablaViajes');
+        tV.innerHTML = `<tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Estado</th></tr>`;
+        viajes.forEach(v => {
+            let color = "#ff9800";
+            if(v.estado === "finalizado") color = "#4caf50";
+            if(v.estado === "cancelado") color = "#f44336";
+            tV.innerHTML += `<tr><td>${v.fecha}</td><td>${v.hora}</td><td>${v.chofer || 'Buscando'}</td><td>${v.pasajero || 'S/N'}</td><td style="color:${color}; font-weight:bold;">${v.estado.toUpperCase()}</td></tr>`;
+        });
+    } catch (e) { console.error("Error viajes"); }
 }
 
-async function aprobarDocumentacion(tel) {
-    if(confirm("¿Aprobar documentación de este chofer?")) {
-        const el = document.getElementById(`doc-${tel}`);
-        if(el) { el.innerText = "DOC: OK"; el.className = "estado-ok"; }
-        try {
-            await fetch('/aprobar-chofer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telefono: tel })
-            });
-        } catch (e) { console.log("Error de red"); }
+async function bloquearPasajero(tel) {
+    if(confirm("¿Bloquear permanentemente?")) {
+        const btn = document.getElementById(`btnLock-${tel}`);
+        if(btn) btn.style.background = "#f44336";
+        await fetch('/bloquear-usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
     }
 }
 
 async function eliminarUsuario(tel) {
-    if(confirm("¿ELIMINAR definitivamente a este usuario del servidor?")) {
-        const fila = document.getElementById(`fila-${tel}`);
-        if(fila) fila.remove();
-        try {
-            const res = await fetch('/eliminar-usuario', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telefono: tel })
-            });
-            if(res.ok) alert("Usuario borrado permanentemente.");
-        } catch (e) { alert("Error al borrar en servidor"); }
+    if(confirm("¿Eliminar definitivamente?")) {
+        document.getElementById(`fila-${tel}`).remove();
+        await fetch('/eliminar-usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
+    }
+}
+
+async function aprobarDocumentacion(tel) {
+    if(confirm("¿Aprobar chofer?")) {
+        await fetch('/aprobar-chofer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
+        cargarDatosReales();
     }
 }
 
 function verPerfilCompleto(tel) {
-    const usuario = listaUsuariosGlobal.find(u => u.telefono === tel);
-    if(usuario) {
-        document.getElementById('nomPerfil').innerText = "Perfil: " + (usuario.nombre || 'S/N');
-        document.getElementById('imgCarnet').src = usuario.fotoCarnet || '';
-        document.getElementById('imgSeguro').src = usuario.fotoSeguro || '';
-        document.getElementById('imgTarjeta').src = usuario.fotoTarjeta || '';
+    const u = listaUsuariosGlobal.find(u => u.telefono === tel);
+    if(u) {
+        document.getElementById('nomPerfil').innerText = u.nombre || 'S/N';
+        document.getElementById('imgCarnet').src = u.fotoCarnet || '';
+        document.getElementById('imgSeguro').src = u.fotoSeguro || '';
+        document.getElementById('imgTarjeta').src = u.fotoTarjeta || '';
         document.getElementById('modalPerfil').style.display = 'block';
     }
 }
-
 function cerrarPerfil() { document.getElementById('modalPerfil').style.display = 'none'; }
-
-async function cargarTarifas() {
-    try {
-        const res = await fetch('/obtener-tarifas');
-        const data = await res.json();
-        document.getElementById('precioBase').value = data.precioBase || "";
-        document.getElementById('precioKm').value = data.precioKm || "";
-        document.getElementById('montoFijo').value = localStorage.getItem('montoFijoInfo') || "";
-    } catch (e) {}
-}
 
 async function guardarTarifas() {
     const pBase = parseInt(document.getElementById('precioBase').value);
     const pKm = parseInt(document.getElementById('precioKm').value);
-    try {
-        await fetch('/actualizar-tarifas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precioBase: pBase, precioKm: pKm }) });
-        localStorage.setItem('montoFijoInfo', document.getElementById('montoFijo').value);
-        alert('Tarifas guardadas');
-    } catch (e) { alert('Error'); }
+    await fetch('/actualizar-tarifas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precioBase: pBase, precioKm: pKm }) });
+    alert('Guardado');
 }
 
 function guardarConfiguracion() {
-    const config = { 
-        app: document.getElementById('confApp').value, 
-        tel: document.getElementById('confTel').value, 
-        mail: document.getElementById('confMail').value, 
-        alias: document.getElementById('confAlias').value 
-    };
+    const config = { app: document.getElementById('confApp').value, tel: document.getElementById('confTel').value, alias: document.getElementById('confAlias').value };
     localStorage.setItem('configAdmin', JSON.stringify(config));
-    alert('Configuración guardada correctamente');
-}
-
-function cargarConfiguracion() {
-    const config = JSON.parse(localStorage.getItem('configAdmin'));
-    if(config) {
-        document.getElementById('confApp').value = config.app || "Smart Traslados";
-        document.getElementById('confTel').value = config.tel || "+54 9";
-        document.getElementById('confMail').value = config.mail || "";
-        document.getElementById('confAlias').value = config.alias || "";
-    }
-}
-
-async function generarNuevoCodigo() {
-    const nuevoCod = Math.floor(100000 + Math.random() * 900000).toString();
-    try {
-        const res = await fetch('/crear-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: nuevoCod }) });
-        if(res.ok) { document.getElementById('txtFichaCodigo').innerText = nuevoCod; document.getElementById('contenedorFicha').style.display = 'flex'; }
-    } catch (e) { alert("Error al generar código"); }
+    alert('Configuración guardada');
 }
 
 window.onload = () => {
-    cargarConfiguracion();
-    cargarTarifas();
     cargarDatosReales();
+    const config = JSON.parse(localStorage.getItem('configAdmin'));
+    if(config) {
+        document.getElementById('confApp').value = config.app || "";
+        document.getElementById('confTel').value = config.tel || "";
+        document.getElementById('confAlias').value = config.alias || "";
+    }
 };
 </script>
 </body>
