@@ -6,18 +6,18 @@ const app = express();
 
 app.use(cors());
 
-// Configuración para recibir fotos pesadas (del código de abajo)
+// Configuración para recibir fotos pesadas
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- CONEXIÓN A MONGODB (Recuperada del código de arriba para que conecte ✅) ---
+// --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Conectado a MongoDB ✅"))
   .catch(err => console.error("Error Mongo ❌:", err));
 
-// --- ESQUEMAS (Tu trabajo del día del código de abajo) ---
+// --- ESQUEMAS ---
 const UsuarioSchema = new mongoose.Schema({
     telefono: { type: String, unique: true },
     rol: String,
@@ -42,6 +42,13 @@ const TokenSchema = new mongoose.Schema({
 });
 const Token = mongoose.model('Token', TokenSchema);
 
+// NUEVO ESQUEMA PARA TARIFAS (ADMIN)
+const TarifaSchema = new mongoose.Schema({
+    precioBase: { type: Number, default: 3500 },
+    precioKm: { type: Number, default: 900 }
+});
+const Tarifa = mongoose.model('Tarifa', TarifaSchema);
+
 // --- RUTAS DE ARCHIVOS ESTÁTICOS ---
 app.use(express.static(path.join(__dirname, 'Public')));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
@@ -50,7 +57,28 @@ app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
 // --- API ---
 
-// 1. RUTA DE LOGIN (Recuperada del código de arriba para que puedas entrar)
+// RUTA PARA QUE EL ADMIN GUARDE LOS PRECIOS
+app.post('/actualizar-tarifas', async (req, res) => {
+    try {
+        const { precioBase, precioKm } = req.body;
+        await Tarifa.findOneAndUpdate({}, { precioBase, precioKm }, { upsert: true });
+        res.json({ mensaje: "Ok" });
+    } catch (e) { res.status(500).json({ error: "Error al guardar" }); }
+});
+
+// RUTA PARA QUE EL PASAJERO LEA LOS PRECIOS
+app.get('/obtener-tarifas', async (req, res) => {
+    try {
+        const tarifas = await Tarifa.findOne();
+        if (tarifas) {
+            res.json(tarifas);
+        } else {
+            res.json({ precioBase: 3500, precioKm: 900 });
+        }
+    } catch (e) { res.status(500).json({ error: "Error al leer" }); }
+});
+
+// 1. RUTA DE LOGIN
 app.post('/login', async (req, res) => {
     try {
         const tel = req.body.telefono.trim();
@@ -68,7 +96,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// 2. REGISTRO (De tu código de abajo)
+// 2. REGISTRO
 app.post('/register', async (req, res) => {
     try {
         const { telefono, rol } = req.body;
@@ -80,7 +108,7 @@ app.post('/register', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// 3. OBTENER USUARIOS (Para tu Panel de Admin)
+// 3. OBTENER USUARIOS
 app.get('/obtener-usuarios', async (req, res) => {
     try {
         const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
@@ -88,7 +116,7 @@ app.get('/obtener-usuarios', async (req, res) => {
     } catch (e) { res.status(500).send(e); }
 });
 
-// 4. ACTUALIZAR PERFIL (De tu código de abajo)
+// 4. ACTUALIZAR PERFIL
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
@@ -101,7 +129,7 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// 5. RUTAS DE TOKENS (Para que el panel de admin funcione)
+// 5. RUTAS DE TOKENS
 app.post('/crear-token', async (req, res) => {
     const nuevoToken = new Token({ codigo: req.body.codigo });
     await nuevoToken.save();
@@ -118,12 +146,12 @@ app.post('/validar-token', async (req, res) => {
     } else { res.status(400).json({ ok: false }); }
 });
 
-// 6. RUTA ADMIN (Para entrar al panel corregido)
+// 6. RUTA ADMIN
 app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index-admin.html'));
 });
 
-// 7. RUTA RAIZ (Vuelve al login si algo falla)
+// 7. RUTA RAIZ
 app.get('*', (req, res) => { 
     res.sendFile(path.join(__dirname, 'Public', 'login.html')); 
 });
