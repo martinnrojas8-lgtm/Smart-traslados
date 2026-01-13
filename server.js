@@ -30,19 +30,21 @@ const UsuarioSchema = new mongoose.Schema({
     fotoSeguro: String,
     fotoTarjeta: String,
     pagoActivo: { type: Boolean, default: false }, 
+    vencimientoPago: { type: Date, default: null }, // NUEVO: Para el countdown
     estadoRevision: { type: String, default: "pendiente" },
     fechaRegistro: { type: Date, default: Date.now }
 });
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
 
 const TokenSchema = new mongoose.Schema({
-    codigo: String,
+    codigo: { type: String, unique: true },
     usado: { type: Boolean, default: false },
+    usadoPor: { type: String, default: null },
+    fechaUso: { type: Date, default: null },
     fechaCreacion: { type: Date, default: Date.now }
 });
 const Token = mongoose.model('Token', TokenSchema);
 
-// NUEVO ESQUEMA PARA TARIFAS (ADMIN)
 const TarifaSchema = new mongoose.Schema({
     precioBase: { type: Number, default: 3500 },
     precioKm: { type: Number, default: 900 }
@@ -57,7 +59,6 @@ app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
 // --- API ---
 
-// RUTA PARA QUE EL ADMIN GUARDE LOS PRECIOS
 app.post('/actualizar-tarifas', async (req, res) => {
     try {
         const { precioBase, precioKm } = req.body;
@@ -66,7 +67,6 @@ app.post('/actualizar-tarifas', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al guardar" }); }
 });
 
-// RUTA PARA QUE EL PASAJERO LEA LOS PRECIOS
 app.get('/obtener-tarifas', async (req, res) => {
     try {
         const tarifas = await Tarifa.findOne();
@@ -78,7 +78,6 @@ app.get('/obtener-tarifas', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al leer" }); }
 });
 
-// 1. RUTA DE LOGIN
 app.post('/login', async (req, res) => {
     try {
         const tel = req.body.telefono.trim();
@@ -86,17 +85,21 @@ app.post('/login', async (req, res) => {
         const usuario = await Usuario.findOne({ telefono: tel, rol: rolElegido });
         
         if (usuario) {
-            console.log(`Login exitoso: ${tel}`);
+            // Verificamos si el pago expiró antes de responder
+            let pagoActivo = false;
+            if (usuario.vencimientoPago && usuario.vencimientoPago > new Date()) {
+                pagoActivo = true;
+            }
+            usuario.pagoActivo = pagoActivo;
+            await usuario.save();
+
             res.json({ mensaje: "Ok", usuario: usuario });
         } else {
             res.status(404).json({ mensaje: "Usuario no encontrado" });
         }
-    } catch (e) { 
-        res.status(500).json({ error: "Error en servidor" }); 
-    }
+    } catch (e) { res.status(500).json({ error: "Error en servidor" }); }
 });
 
-// 2. REGISTRO
 app.post('/register', async (req, res) => {
     try {
         const { telefono, rol } = req.body;
@@ -108,7 +111,6 @@ app.post('/register', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// 3. OBTENER USUARIOS
 app.get('/obtener-usuarios', async (req, res) => {
     try {
         const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
@@ -116,7 +118,6 @@ app.get('/obtener-usuarios', async (req, res) => {
     } catch (e) { res.status(500).send(e); }
 });
 
-// 4. ACTUALIZAR PERFIL
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
@@ -129,29 +130,58 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// 5. RUTAS DE TOKENS
+// --- SISTEMA DE TOKENS 24HS ---
+
 app.post('/crear-token', async (req, res) => {
-    const nuevoToken = new Token({ codigo: req.body.codigo });
-    await nuevoToken.save();
-    res.json({ mensaje: "Token creado" });
+    try {
+        const nuevoToken = new Token({ codigo: req.body.codigo });
+        await nuevoToken.save();
+        res.json({ mensaje: "Token creado" });
+    } catch (e) { res.status(500).json({ error: "Error al crear token" }); }
 });
 
 app.post('/validar-token', async (req, res) => {
-    const { codigo, telefono } = req.body;
-    const t = await Token.findOne({ codigo, usado: false });
-    if (t) {
-        t.usado = true; await t.save();
-        await Usuario.findOneAndUpdate({ telefono }, { pagoActivo: true });
-        res.json({ ok: true });
-    } else { res.status(400).json({ ok: false }); }
+    try {
+        const { codigo, telefono } = req.body;
+        const t = await Token.findOne({ codigo: codigo.trim(), usado: false });
+        
+        if (t) {
+            const ahora = new Date();
+            const vencimiento = new Date(ahora.getTime() + (24 * 60 * 60 * 1000)); // +24hs
+
+            t.usado = true;
+            t.usadoPor = telefono;
+            t.fechaUso = ahora;
+            await t.save();
+
+            await Usuario.findOneAndUpdate({ telefono }, { 
+                pagoActivo: true, 
+                vencimientoPago: vencimiento 
+            });
+
+            res.json({ ok: true, vencimiento: vencimiento });
+        } else { 
+            res.status(400).json({ ok: false, mensaje: "Código inválido o ya usado" }); 
+        }
+    } catch (e) { res.status(500).json({ error: "Error al validar" }); }
 });
 
-// 6. RUTA ADMIN
+// Obtener estado de suscripción (para el cronómetro del chofer)
+app.get('/estado-suscripcion/:telefono', async (req, res) => {
+    try {
+        const u = await Usuario.findOne({ telefono: req.params.telefono });
+        if (!u) return res.status(404).send();
+        res.json({ 
+            pagoActivo: u.vencimientoPago > new Date(),
+            vencimiento: u.vencimientoPago 
+        });
+    } catch (e) { res.status(500).send(); }
+});
+
 app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index-admin.html'));
 });
 
-// 7. RUTA RAIZ
 app.get('*', (req, res) => { 
     res.sendFile(path.join(__dirname, 'Public', 'login.html')); 
 });
