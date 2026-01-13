@@ -203,11 +203,12 @@ function actualizarTablaPasajeros(pasas) {
     let tP = document.getElementById('tablaPasajeros');
     tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>`;
     pasas.forEach(p => { 
+        const estaBloqueado = p.bloqueado === true;
         tP.innerHTML += `<tr id="fila-${p.telefono}">
             <td>${p.nombre || 'S/N'}</td>
             <td>${p.telefono}</td>
             <td>
-                <button class="btn-accion" title="Bloquear" style="background:#ff9800;" onclick="bloquearPasajero('${p.telefono}')">🔒</button>
+                <button id="btnLock-${p.telefono}" class="btn-accion" title="Bloquear" style="background:${estaBloqueado ? '#f44336' : '#ff9800'};" onclick="bloquearPasajero('${p.telefono}')">🔒</button>
                 <button class="btn-accion" title="Eliminar" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">✖</button>
             </td>
         </tr>`; 
@@ -216,17 +217,17 @@ function actualizarTablaPasajeros(pasas) {
 
 async function bloquearPasajero(tel) {
     if(confirm("¿Bloquear este número permanentemente? No podrá registrarse de nuevo.")) {
+        const btn = document.getElementById(`btnLock-${tel}`);
+        if(btn) btn.style.background = "#f44336"; // Cambio visual a rojo inmediato
+        
         try {
-            const res = await fetch('/bloquear-usuario', {
+            await fetch('/bloquear-usuario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ telefono: tel })
             });
-            if(res.ok) {
-                alert("Pasajero bloqueado y añadido a la lista negra.");
-                document.getElementById(`fila-${tel}`).remove();
-            }
-        } catch (e) { alert("Error al bloquear"); }
+            alert("Bloqueo registrado en el servidor.");
+        } catch (e) { alert("Error al conectar con servidor"); }
     }
 }
 
@@ -245,16 +246,17 @@ async function aprobarDocumentacion(tel) {
 }
 
 async function eliminarUsuario(tel) {
-    if(confirm("¿ELIMINAR definitivamente a este usuario?")) {
+    if(confirm("¿ELIMINAR definitivamente a este usuario del servidor?")) {
         const fila = document.getElementById(`fila-${tel}`);
         if(fila) fila.remove();
         try {
-            await fetch('/eliminar-usuario', {
+            const res = await fetch('/eliminar-usuario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ telefono: tel })
             });
-        } catch (e) { console.log("Error al borrar"); }
+            if(res.ok) alert("Usuario borrado permanentemente.");
+        } catch (e) { alert("Error al borrar en servidor"); }
     }
 }
 
@@ -262,9 +264,9 @@ function verPerfilCompleto(tel) {
     const usuario = listaUsuariosGlobal.find(u => u.telefono === tel);
     if(usuario) {
         document.getElementById('nomPerfil').innerText = "Perfil: " + (usuario.nombre || 'S/N');
-        document.getElementById('imgCarnet').src = usuario.fotoCarnet || 'https://via.placeholder.com/300?text=Sin+Foto';
-        document.getElementById('imgSeguro').src = usuario.fotoSeguro || 'https://via.placeholder.com/300?text=Sin+Foto';
-        document.getElementById('imgTarjeta').src = usuario.fotoTarjeta || 'https://via.placeholder.com/300?text=Sin+Foto';
+        document.getElementById('imgCarnet').src = usuario.fotoCarnet || '';
+        document.getElementById('imgSeguro').src = usuario.fotoSeguro || '';
+        document.getElementById('imgTarjeta').src = usuario.fotoTarjeta || '';
         document.getElementById('modalPerfil').style.display = 'block';
     }
 }
