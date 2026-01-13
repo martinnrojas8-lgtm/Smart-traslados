@@ -83,9 +83,11 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 <div id="pasajeros" class="pantalla">
     <div class="card">
         <h3>Lista de Pasajeros</h3>
-        <table id="tablaPasajeros">
-            <tr><th>Nombre</th><th>Teléfono</th></tr>
-        </table>
+        <div style="overflow-x:auto;">
+            <table id="tablaPasajeros">
+                <tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -165,10 +167,8 @@ async function cargarDatosReales() {
         document.getElementById('pTotal').innerText = pasas.length;
 
         actualizarTablaConductores(conds);
+        actualizarTablaPasajeros(pasas);
 
-        let tP = document.getElementById('tablaPasajeros');
-        tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th></tr>`;
-        pasas.forEach(p => { tP.innerHTML += `<tr><td>${p.nombre || 'S/N'}</td><td>${p.telefono}</td></tr>`; });
     } catch (e) { console.error("Error al cargar datos"); }
 }
 
@@ -199,35 +199,62 @@ function actualizarTablaConductores(conds) {
     });
 }
 
+function actualizarTablaPasajeros(pasas) {
+    let tP = document.getElementById('tablaPasajeros');
+    tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>`;
+    pasas.forEach(p => { 
+        tP.innerHTML += `<tr id="fila-${p.telefono}">
+            <td>${p.nombre || 'S/N'}</td>
+            <td>${p.telefono}</td>
+            <td>
+                <button class="btn-accion" title="Bloquear" style="background:#ff9800;" onclick="bloquearPasajero('${p.telefono}')">🔒</button>
+                <button class="btn-accion" title="Eliminar" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">✖</button>
+            </td>
+        </tr>`; 
+    });
+}
+
+async function bloquearPasajero(tel) {
+    if(confirm("¿Bloquear este número permanentemente? No podrá registrarse de nuevo.")) {
+        try {
+            const res = await fetch('/bloquear-usuario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telefono: tel })
+            });
+            if(res.ok) {
+                alert("Pasajero bloqueado y añadido a la lista negra.");
+                document.getElementById(`fila-${tel}`).remove();
+            }
+        } catch (e) { alert("Error al bloquear"); }
+    }
+}
+
 async function aprobarDocumentacion(tel) {
     if(confirm("¿Aprobar documentación de este chofer?")) {
-        // Cambio visual inmediato
         const el = document.getElementById(`doc-${tel}`);
         if(el) { el.innerText = "DOC: OK"; el.className = "estado-ok"; }
-        
         try {
             await fetch('/aprobar-chofer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ telefono: tel })
             });
-        } catch (e) { console.log("Error de red, pero marcado localmente"); }
+        } catch (e) { console.log("Error de red"); }
     }
 }
 
 async function eliminarUsuario(tel) {
     if(confirm("¿ELIMINAR definitivamente a este usuario?")) {
-        // Borrado inmediato de la pantalla
         const fila = document.getElementById(`fila-${tel}`);
         if(fila) fila.remove();
-
         try {
             await fetch('/eliminar-usuario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ telefono: tel })
             });
-        } catch (e) { console.log("Error al borrar en servidor"); }
+        } catch (e) { console.log("Error al borrar"); }
     }
 }
 
