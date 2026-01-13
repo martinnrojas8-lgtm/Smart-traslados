@@ -48,17 +48,30 @@ const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, directionsService, directionsRenderer;
 let marcadoresChoferes = {};
 
-// CONFIGURACIÓN DE TARIFAS SOLICITADA
-const TARIFA_BASE_4KM = 3500;
-const PRECIO_POR_KM = 900;
+// Tarifas dinámicas (se cargan desde el servidor)
+let TARIFA_BASE_4KM = 3500; 
+let PRECIO_POR_KM = 900;
 const LIMITE_KM_BASE = 4;
 
-// COORDENADAS DE SALADILLO (Centro)
 const SALADILLO_COORD = { lat: -35.6380, lng: -59.7793 };
 const RADIO_MAXIMO_KM = 40;
 
+async function cargarTarifas() {
+    try {
+        const res = await fetch('/obtener-tarifas');
+        const data = await res.json();
+        if (data.precioBase) TARIFA_BASE_4KM = parseFloat(data.precioBase);
+        if (data.precioKm) PRECIO_POR_KM = parseFloat(data.precioKm);
+        console.log("Tarifas actualizadas desde Admin:", TARIFA_BASE_4KM, PRECIO_POR_KM);
+    } catch (e) {
+        console.log("Usando tarifas por defecto");
+    }
+}
+
 function initApp() {
     if (!sesion.telefono) return location.href = "/";
+    cargarTarifas(); // Carga los precios del Admin al iniciar
+
     if(sesion.foto) {
         document.getElementById("fotoHeader").src = sesion.foto;
         document.getElementById("fotoHeader").style.display = "block";
@@ -74,14 +87,10 @@ function initApp() {
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
-    const bounds = new google.maps.Circle({ center: SALADILLO_COORD, radius: RADIO_MAXIMO_KM * 1000 }).getBounds();
-    
     const setupAuto = (id) => {
         const auto = new google.maps.places.Autocomplete(document.getElementById(id), {
-            bounds: bounds,
             componentRestrictions: { country: "ar" },
-            fields: ["formatted_address", "geometry"],
-            strictBounds: false 
+            fields: ["formatted_address", "geometry"]
         });
         auto.addListener("place_changed", calcularRuta);
     };
@@ -92,9 +101,6 @@ function initApp() {
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
-            if (calcularDistancia(SALADILLO_COORD, pos) > RADIO_MAXIMO_KM) {
-                alert("Smart Traslados opera únicamente en Saladillo y zona rural (Radio 40km).");
-            }
             map.setCenter(pos);
             new google.maps.Geocoder().geocode({location: pos}, (res, stat) => {
                 if(stat === "OK") document.getElementById("origen").value = res[0].formatted_address;
@@ -104,16 +110,35 @@ function initApp() {
     setInterval(obtenerChoferesCercanos, 5000);
 }
 
-function calcularDistancia(p1, p2) {
-    const R = 6371; 
-    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+function calcularRuta() {
+    const origen = document.getElementById("origen").value;
+    const destino = document.getElementById("destino").value;
+    if(!origen || !destino) return;
+    const waypoints = [];
+    document.querySelectorAll(".input-parada").forEach(inp => { if(inp.value) waypoints.push({location: inp.value, stopover: true}); });
+
+    directionsService.route({ origin: origen, destination: destino, waypoints: waypoints, travelMode: 'DRIVING' }, (res, stat) => {
+        if (stat === "OK") {
+            directionsRenderer.setDirections(res);
+            let distMetros = 0; 
+            res.routes[0].legs.forEach(l => distMetros += l.distance.value);
+            
+            let distKm = distMetros / 1000;
+            let precioFinal = 0;
+
+            // USA LOS VALORES QUE VINIERON DEL ADMIN
+            if (distKm <= LIMITE_KM_BASE) {
+                precioFinal = TARIFA_BASE_4KM;
+            } else {
+                precioFinal = distKm * PRECIO_POR_KM;
+            }
+
+            document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precioFinal);
+        }
+    });
 }
+
+// ... (resto de funciones: pedirViaje, agregarParada, obtenerChoferesCercanos permanecen igual)
 
 function obtenerChoferesCercanos() {
     fetch("/obtener-choferes-activos")
@@ -138,34 +163,6 @@ function obtenerChoferesCercanos() {
                 });
             }
         });
-    }).catch(e => console.log("Servidor no responde"));
-}
-
-function calcularRuta() {
-    const origen = document.getElementById("origen").value;
-    const destino = document.getElementById("destino").value;
-    if(!origen || !destino) return;
-    const waypoints = [];
-    document.querySelectorAll(".input-parada").forEach(inp => { if(inp.value) waypoints.push({location: inp.value, stopover: true}); });
-
-    directionsService.route({ origin: origen, destination: destino, waypoints: waypoints, travelMode: 'DRIVING' }, (res, stat) => {
-        if (stat === "OK") {
-            directionsRenderer.setDirections(res);
-            let distMetros = 0; 
-            res.routes[0].legs.forEach(l => distMetros += l.distance.value);
-            
-            let distKm = distMetros / 1000;
-            let precioFinal = 0;
-
-            // APLICACIÓN DE LÓGICA DE NEGOCIO
-            if (distKm <= LIMITE_KM_BASE) {
-                precioFinal = TARIFA_BASE_4KM;
-            } else {
-                precioFinal = distKm * PRECIO_POR_KM;
-            }
-
-            document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precioFinal);
-        }
     });
 }
 
@@ -173,30 +170,10 @@ function pedirViaje() {
     const origen = document.getElementById("origen").value;
     const destino = document.getElementById("destino").value;
     const precio = document.getElementById("cuadroPrecio").innerText;
-    
     if(!destino) return alert("Ingresá un destino");
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(p => {
-            const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
-            if (calcularDistancia(SALADILLO_COORD, pos) > RADIO_MAXIMO_KM) {
-                alert("Estás fuera del área de cobertura de Smart Traslados.");
-                return;
-            }
-
-            const pedido = {
-                pasajeroTel: sesion.telefono,
-                pasajeroNombre: sesion.nombre || "Pasajero",
-                origen, destino, precio, timestamp: Date.now()
-            };
-
-            fetch("/solicitar-viaje", {
-                method: "POST", headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(pedido)
-            }).then(() => alert("Buscando chofer..."))
-            .catch(() => alert("Error al conectar con servidor"));
-        });
-    }
+    const pedido = { pasajeroTel: sesion.telefono, pasajeroNombre: sesion.nombre || "Pasajero", origen, destino, precio, timestamp: Date.now() };
+    fetch("/solicitar-viaje", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(pedido) })
+    .then(() => alert("Buscando chofer..."));
 }
 
 function agregarParada() {
@@ -206,12 +183,7 @@ function agregarParada() {
     div.id = id;
     div.innerHTML = `<input type="text" placeholder="Parada" class="input-parada"><button class="btn-del" onclick="document.getElementById('${id}').remove(); calcularRuta();">X</button>`;
     document.getElementById("contenedorParadas").appendChild(div);
-    
-    const bounds = new google.maps.Circle({ center: SALADILLO_COORD, radius: RADIO_MAXIMO_KM * 1000 }).getBounds();
-    new google.maps.places.Autocomplete(div.querySelector("input"), {
-        bounds: bounds,
-        componentRestrictions: { country: "ar" }
-    }).addListener("place_changed", calcularRuta);
+    new google.maps.places.Autocomplete(div.querySelector("input"), { componentRestrictions: { country: "ar" } }).addListener("place_changed", calcularRuta);
 }
 
 window.onload = initApp;
