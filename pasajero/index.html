@@ -12,12 +12,15 @@
   .card{ background:#111; border-radius:12px; padding:15px; margin-bottom:15px; border:1px solid #333; box-sizing: border-box; }
   input{ width:100%; padding:12px; margin:5px 0; border-radius:8px; border:none; background:#222; color:#fff; box-sizing:border-box; }
   button{ padding:12px; width:100%; margin-top:10px; border:none; border-radius:8px; background:#00c853; color:#000; font-weight:bold; cursor:pointer; }
-  .price-box{ font-size:24px; color:#00c853; font-weight:bold; text-align:center; margin:15px 0; border: 1px dashed #00c853; padding: 10px; border-radius: 8px; }
+  .price-box{ font-size:24px; color:#00c853; font-weight:bold; text-align:center; margin-bottom:15px; border: 1px dashed #00c853; padding: 10px; border-radius: 8px; }
   #map{ width:100%; height:300px; border-radius:10px; margin-bottom:10px; }
   .btn-perfil{ width:40px; height:40px; border-radius:50%; border:2px solid #00c853; overflow:hidden; background:#333; display:flex; align-items:center; justify-content:center; }
   .btn-perfil img{ width:100%; height:100%; object-fit:cover; }
   .stop-item{ display:flex; gap:5px; align-items:center; margin-top:5px; }
   .btn-del{ background:#ff5252; width:45px; flex-shrink:0; }
+  
+  /* Nuevo estilo para la distancia */
+  .distancia-info { text-align: center; color: #aaa; font-size: 14px; margin-top: 10px; margin-bottom: 5px; }
 </style>
 </head>
 <body>
@@ -37,6 +40,9 @@
     <input type="text" id="destino" placeholder="¿A dónde vas?">
     <div id="contenedorParadas"></div>
     <button style="background:#333; color:#fff; font-size:12px;" onclick="agregarParada()">+ Agregar Parada</button>
+    
+    <div class="distancia-info" id="infoDistancia">Distancia: 0 km</div>
+    
     <div class="price-box" id="cuadroPrecio">Total: $0</div>
     <button id="btnPedir" onclick="pedirViaje()">SOLICITAR AHORA</button>
   </div>
@@ -48,7 +54,6 @@ const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, directionsService, directionsRenderer;
 let marcadoresChoferes = {};
 
-// Valores iniciales (se sobreescriben con lo que diga el Admin)
 let TARIFA_BASE_4KM = 3500; 
 let PRECIO_POR_KM = 900;
 const LIMITE_KM_BASE = 4;
@@ -58,7 +63,6 @@ const SALADILLO_COORD = { lat: -35.6380, lng: -59.7793 };
 async function initApp() {
     if (!sesion.telefono) return location.href = "/";
     
-    // Carga inicial de datos de usuario
     if(sesion.foto) {
         document.getElementById("fotoHeader").src = sesion.foto;
         document.getElementById("fotoHeader").style.display = "block";
@@ -97,21 +101,18 @@ async function initApp() {
     setInterval(obtenerChoferesCercanos, 5000);
 }
 
-// ESTA ES LA FUNCIÓN CLAVE QUE SE CONECTA AL ADMIN
 async function calcularRuta() {
     const origen = document.getElementById("origen").value;
     const destino = document.getElementById("destino").value;
     if(!origen || !destino) return;
 
-    // CONSULTA AL ADMIN ANTES DE CALCULAR EL PRECIO
     try {
         const res = await fetch('/obtener-tarifas');
         const data = await res.json();
         if (data.precioBase) TARIFA_BASE_4KM = parseFloat(data.precioBase);
         if (data.precioKm) PRECIO_POR_KM = parseFloat(data.precioKm);
-        console.log("Tarifas capturadas del Admin:", TARIFA_BASE_4KM, PRECIO_POR_KM);
     } catch (e) {
-        console.log("Error consultando Admin, usando valores previos.");
+        console.log("Error consultando Admin.");
     }
 
     const waypoints = [];
@@ -134,6 +135,8 @@ async function calcularRuta() {
                 precioFinal = distKm * PRECIO_POR_KM;
             }
 
+            // ACTUALIZAR DISTANCIA Y PRECIO EN PANTALLA
+            document.getElementById("infoDistancia").innerText = "Distancia: " + distKm.toFixed(1) + " km";
             document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precioFinal);
         }
     });
@@ -169,8 +172,21 @@ function pedirViaje() {
     const origen = document.getElementById("origen").value;
     const destino = document.getElementById("destino").value;
     const precio = document.getElementById("cuadroPrecio").innerText;
+    const distancia = document.getElementById("infoDistancia").innerText; // Agregamos la distancia al pedido
+    
     if(!destino) return alert("Ingresá un destino");
-    const pedido = { pasajeroTel: sesion.telefono, pasajeroNombre: sesion.nombre || "Pasajero", origen, destino, precio, timestamp: Date.now() };
+    
+    // Enviamos distancia y precio al servidor
+    const pedido = { 
+        pasajeroTel: sesion.telefono, 
+        pasajeroNombre: sesion.nombre || "Pasajero", 
+        origen, 
+        destino, 
+        precio, 
+        distancia,
+        timestamp: Date.now() 
+    };
+    
     fetch("/solicitar-viaje", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(pedido) })
     .then(() => alert("Buscando chofer..."));
 }
