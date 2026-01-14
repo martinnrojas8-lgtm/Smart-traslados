@@ -29,7 +29,6 @@
   .btn { font-weight: bold; cursor: pointer; text-decoration: none; transition: 0.3s; }
   .btn-verde { background:#2ecc71; color:#fff; }
   .btn-azul { background:#00bcd4; color:#fff; }
-  /* Botón de instalación: inicialmente oculto */
   .btn-download { background: transparent; border: 1px solid #2ecc71; color: #2ecc71; font-size: 14px; margin-top: 5px; display: none; }
   .btn:active { transform: scale(0.96); }
 </style>
@@ -52,11 +51,37 @@
 
     <input type="text" id="campoNombre" placeholder="Tu nombre completo">
 
+    <!-- TÉRMINOS Y CONDICIONES -->
+    <label style="display:block; font-size:13px; color:#ccc; text-align:left; margin-bottom:15px;">
+      <input type="checkbox" id="chkTerms">
+      Acepto los 
+      <span onclick="mostrarTerms()" style="color:#2ecc71; cursor:pointer; text-decoration:underline;">
+        Términos y Condiciones
+      </span>
+    </label>
+
     <button class="btn btn-verde" onclick="enviarRegistro()">Registrarse</button>
     <button class="btn btn-azul" onclick="volverLogin()">Ingresar</button>
 
     <button id="btnInstalar" class="btn btn-download">Instalar App Oficial</button>
   </div>
+
+<!-- MODAL TÉRMINOS -->
+<div id="modalTerms" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:3000; color:#fff; padding:20px; overflow:auto;">
+  <h2 style="color:#2ecc71">Términos y Condiciones</h2>
+  <p style="font-size:13px; line-height:1.6; color:#ccc">
+    Smart Traslados es una plataforma tecnológica que conecta pasajeros con
+    conductores independientes. No presta servicios de transporte ni asume
+    responsabilidad por los traslados realizados.
+    <br><br>
+    Los conductores actúan de manera independiente y son los únicos responsables
+    del cumplimiento de las leyes, seguros y condiciones del servicio.
+    <br><br>
+    Al utilizar la plataforma, el usuario acepta liberar a Smart Traslados de
+    cualquier responsabilidad derivada de accidentes, daños, pérdidas o conflictos.
+  </p>
+  <button class="btn btn-verde" onclick="cerrarTerms()">Cerrar</button>
+</div>
 
 <script>
 // --- LÓGICA DE INSTALACIÓN ---
@@ -66,16 +91,14 @@ const btnInstalar = document.getElementById('btnInstalar');
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    btnInstalar.style.display = 'flex'; // Mostramos el botón cuando el celu está listo
+    btnInstalar.style.display = 'flex';
 });
 
 btnInstalar.addEventListener('click', async () => {
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            btnInstalar.style.display = 'none';
-        }
+        if (outcome === 'accepted') btnInstalar.style.display = 'none';
         deferredPrompt = null;
     }
 });
@@ -84,7 +107,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => console.log("SW registrado"));
 }
 
-// --- LÓGICA DE NEGOCIO ---
+// --- SESIÓN ---
 function verificarSesion() {
     const sesion = JSON.parse(localStorage.getItem("sesion"));
     if (sesion && sesion.telefono && sesion.tipo) {
@@ -94,8 +117,7 @@ function verificarSesion() {
 
 function toggleNombre() {
     const rol = document.getElementById("rol").value;
-    const campoNombre = document.getElementById("campoNombre");
-    campoNombre.style.display = (rol === "pasajero") ? "block" : "none";
+    document.getElementById("campoNombre").style.display = (rol === "pasajero") ? "block" : "none";
 }
 
 window.onload = () => {
@@ -103,7 +125,25 @@ window.onload = () => {
     toggleNombre();
 };
 
+// --- TÉRMINOS ---
+function mostrarTerms() {
+    document.getElementById("modalTerms").style.display = "block";
+}
+function cerrarTerms() {
+    document.getElementById("modalTerms").style.display = "none";
+}
+function validarTerms() {
+    if (!document.getElementById("chkTerms").checked) {
+        alert("Debés aceptar los Términos y Condiciones.");
+        return false;
+    }
+    return true;
+}
+
+// --- REGISTRO ---
 async function enviarRegistro() {
+    if (!validarTerms()) return;
+
     const tel = document.getElementById("telefono").value.trim();
     const rolElegido = document.getElementById("rol").value;
     const nombrePasajero = document.getElementById("campoNombre").value.trim();
@@ -129,7 +169,10 @@ async function enviarRegistro() {
     } catch (e) { alert("Error de conexión"); }
 }
 
+// --- LOGIN ---
 async function volverLogin() {
+    if (!validarTerms()) return;
+
     const tel = document.getElementById("telefono").value.trim();
     const rolElegido = document.getElementById("rol").value;
 
