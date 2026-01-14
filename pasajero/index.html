@@ -22,6 +22,13 @@
   
   /* Estilo para el banner de instalación */
   #bannerInstalar { display: none; background: #00c853; color: #000; padding: 10px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 15px; cursor: pointer; border: none; width: 100%; }
+
+  /* Estilo para Modal de Chofer Encontrado */
+  #modalConfirmacion { 
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center;
+  }
+  .card-confirmacion { background: #111; border: 2px solid #00c853; padding: 30px; border-radius: 20px; width: 90%; }
 </style>
 </head>
 <body>
@@ -34,10 +41,20 @@
   </div>
 </header>
 
+<div id="modalConfirmacion">
+    <div class="card-confirmacion">
+        <h2 style="color:#00c853;">¡CHOFER EN CAMINO!</h2>
+        <div style="font-size: 50px; margin: 20px 0;">🚕</div>
+        <p id="infoChofer" style="font-size: 18px; font-weight: bold;">Buscando datos...</p>
+        <p style="color: #888;">Tu chofer ya aceptó el viaje y se dirige a tu ubicación.</p>
+        <button onclick="location.reload()" style="background: #222; color: #fff; margin-top: 20px;">ENTENDIDO</button>
+    </div>
+</div>
+
 <div class="screen">
   <button id="bannerInstalar" onclick="instalarApp()">📲 DESCARGAR APP SMART</button>
 
-  <div class="card">
+  <div class="card" id="cardPedido">
     <div id="map"></div>
     <input type="text" id="origen" placeholder="Cargando ubicación...">
     <input type="text" id="destino" placeholder="¿A dónde vas?">
@@ -49,7 +66,17 @@
     <div class="price-box" id="cuadroPrecio">Total: $0</div>
     <button id="btnPedir" onclick="pedirViaje()">SOLICITAR AHORA</button>
   </div>
+
+  <div id="estadoEspera" style="display:none; text-align: center; padding: 20px;">
+      <div class="price-box">BUSCANDO CHOFER...</div>
+      <p>Estamos notificando a los conductores cercanos.</p>
+      <div style="width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #00c853; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+  </div>
 </div>
+
+<style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCeXV1ZmTBpGBIE6MwG8HvIAXziKUPK1d8&libraries=places"></script>
 <script>
@@ -57,6 +84,8 @@ const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, directionsService, directionsRenderer;
 let marcadoresChoferes = {};
 let deitPrompt; 
+let idViajeActual = null;
+let intervaloSeguimiento = null;
 
 let TARIFA_BASE_4KM = 3500; 
 let PRECIO_POR_KM = 900;
@@ -111,7 +140,6 @@ async function initApp() {
     setupAuto("origen"); 
     setupAuto("destino");
 
-    // SOLUCIÓN AL ORIGEN: Obtener ubicación y ponerla en el input
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
             const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
@@ -120,7 +148,6 @@ async function initApp() {
             geocoder.geocode({ location: pos }, (results, status) => {
                 if (status === "OK" && results[0]) {
                     document.getElementById("origen").value = results[0].formatted_address;
-                    // Opcional: calcular ruta automáticamente si ya hay un destino escrito
                     calcularRuta();
                 } else {
                     document.getElementById("origen").placeholder = "No se pudo obtener la dirección";
@@ -144,9 +171,7 @@ async function calcularRuta() {
         const data = await res.json();
         if (data.precioBase) TARIFA_BASE_4KM = parseFloat(data.precioBase);
         if (data.precioKm) PRECIO_POR_KM = parseFloat(data.precioKm);
-    } catch (e) {
-        console.log("Error consultando Admin.");
-    }
+    } catch (e) { console.log("Error tarifas"); }
 
     const waypoints = [];
     document.querySelectorAll(".input-parada").forEach(inp => { 
@@ -158,15 +183,8 @@ async function calcularRuta() {
             directionsRenderer.setDirections(res);
             let distMetros = 0; 
             res.routes[0].legs.forEach(l => distMetros += l.distance.value);
-            
             let distKm = distMetros / 1000;
-            let precioFinal = 0;
-
-            if (distKm <= LIMITE_KM_BASE) {
-                precioFinal = TARIFA_BASE_4KM;
-            } else {
-                precioFinal = distKm * PRECIO_POR_KM;
-            }
+            let precioFinal = (distKm <= LIMITE_KM_BASE) ? TARIFA_BASE_4KM : distKm * PRECIO_POR_KM;
 
             document.getElementById("infoDistancia").innerText = "Distancia: " + distKm.toFixed(1) + " km";
             document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precioFinal);
@@ -209,19 +227,12 @@ function pedirViaje() {
     if(!destino) return alert("Ingresá un destino");
 
     const paradas = [];
-    document.querySelectorAll(".input-parada").forEach(inp => { 
-        if(inp.value) paradas.push(inp.value); 
-    });
+    document.querySelectorAll(".input-parada").forEach(inp => { if(inp.value) paradas.push(inp.value); });
     
     const pedido = { 
         pasajeroTel: sesion.telefono, 
         pasajeroNombre: sesion.nombre || "Pasajero", 
-        origen, 
-        destino, 
-        paradas,
-        precio, 
-        distancia,
-        timestamp: Date.now() 
+        origen, destino, paradas, precio, distancia, timestamp: Date.now() 
     };
     
     fetch("/solicitar-viaje", { 
@@ -229,14 +240,41 @@ function pedirViaje() {
         headers: {"Content-Type": "application/json"}, 
         body: JSON.stringify(pedido) 
     })
-    .then(res => {
-        if(res.ok) {
-            alert("Buscando chofer...");
-        } else {
-            alert("Error al solicitar viaje. Intente nuevamente.");
+    .then(res => res.json())
+    .then(data => {
+        if(data.id) {
+            idViajeActual = data.id;
+            document.getElementById("cardPedido").style.display = "none";
+            document.getElementById("estadoEspera").style.display = "block";
+            iniciarSeguimientoViaje();
         }
     })
-    .catch(err => alert("Error de conexión con el servidor."));
+    .catch(err => alert("Error de conexión."));
+}
+
+function iniciarSeguimientoViaje() {
+    if(intervaloSeguimiento) clearInterval(intervaloSeguimiento);
+    intervaloSeguimiento = setInterval(async () => {
+        try {
+            const res = await fetch('/obtener-viajes'); // Usamos la ruta que ya tenés para ver el estado
+            const viajes = await res.json();
+            const miViaje = viajes.find(v => v._id === idViajeActual);
+
+            if (miViaje && miViaje.estado === "aceptado") {
+                clearInterval(intervaloSeguimiento);
+                mostrarChoferEncontrado(miViaje);
+            }
+        } catch (e) { console.log("Error siguiendo viaje"); }
+    }, 3000);
+}
+
+function mostrarChoferEncontrado(viaje) {
+    document.getElementById("estadoEspera").style.display = "none";
+    document.getElementById("infoChofer").innerHTML = `
+        ${viaje.chofer}<br>
+        <span style="font-size:14px; color:#00c853;">📞 ${viaje.choferTel}</span>
+    `;
+    document.getElementById("modalConfirmacion").style.display = "flex";
 }
 
 function agregarParada() {
