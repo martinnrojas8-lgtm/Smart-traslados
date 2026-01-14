@@ -31,6 +31,26 @@
   .btn-azul { background:#00bcd4; color:#fff; }
   .btn-download { background: transparent; border: 1px solid #2ecc71; color: #2ecc71; font-size: 14px; margin-top: 5px; display: none; }
   .btn:active { transform: scale(0.96); }
+
+  /* MEJORA DEL CHECKBOX */
+  .terminos-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #ccc;
+    margin-bottom: 20px;
+    cursor: pointer;
+    text-align: left;
+  }
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #2ecc71; /* Esto hace que el check sea verde como tu app */
+  }
 </style>
 </head>
 <body>
@@ -51,12 +71,13 @@
 
     <input type="text" id="campoNombre" placeholder="Tu nombre completo">
 
-    <!-- TÉRMINOS Y CONDICIONES -->
-    <label style="display:block; font-size:13px; color:#ccc; text-align:left; margin-bottom:15px;">
+    <label class="terminos-wrapper">
       <input type="checkbox" id="chkTerms">
-      Acepto los 
-      <span onclick="mostrarTerms()" style="color:#2ecc71; cursor:pointer; text-decoration:underline;">
-        Términos y Condiciones
+      <span>
+        Acepto los 
+        <span onclick="mostrarTerms()" style="color:#2ecc71; cursor:pointer; text-decoration:underline;">
+          Términos y Condiciones
+        </span>
       </span>
     </label>
 
@@ -66,7 +87,6 @@
     <button id="btnInstalar" class="btn btn-download">Instalar App Oficial</button>
   </div>
 
-<!-- MODAL TÉRMINOS -->
 <div id="modalTerms" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:3000; color:#fff; padding:20px; overflow:auto;">
   <h2 style="color:#2ecc71">Términos y Condiciones</h2>
   <p style="font-size:13px; line-height:1.6; color:#ccc">
