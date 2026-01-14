@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Traslados – Panel Propietario</title>
 
-<link rel="icon" type="image/jpeg" href="/Public/IMG_20260103_200424.jpg">
-<link rel="apple-touch-icon" href="/Public/IMG_20260103_200424.jpg">
-<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" href="Public/IMG_20260103_200424.jpg">
+<link rel="apple-touch-icon" href="Public/IMG_20260103_200424.jpg">
 
 <style>
 body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; }
@@ -36,7 +35,7 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 <body>
 
 <header>
-    <img src="/Public/IMG_20260103_200424.jpg" class="logo-header" alt="logo">
+    <img src="Public/IMG_20260103_200424.jpg" class="logo-header" alt="logo">
     <span>Smart Traslados – Admin</span>
 </header>
 
@@ -74,10 +73,9 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
         <h3>Generar Pin de Activación 24hs</h3>
         <button class="btn-ok" onclick="generarNuevoCodigo()">GENERAR NUEVO CÓDIGO</button>
         <div id="contenedorFicha" style="display: none; flex-direction: column; align-items: center; background: #fff; padding: 25px; border-radius: 15px; max-width: 300px; margin: 25px auto; color: #000; text-align: center; border: 3px solid #4caf50; box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
-            <img src="/Public/IMG_20260103_200424.jpg" style="height: 60px; border-radius: 5px; margin-bottom: 10px;">
+            <img src="Public/IMG_20260103_200424.jpg" style="height: 60px; border-radius: 5px; margin-bottom: 10px;">
             <div style="font-size: 20px; font-weight: bold; color: #111; margin-bottom: 5px;">SMART TRASLADOS</div>
             <div style="font-size: 12px; color: #666; font-weight: bold; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #ddd; width: 100%; padding-bottom: 10px;">VOUCHER DE ACTIVACIÓN</div>
-            <div style="font-size: 11px; color: #333; margin-bottom: 5px;">CÓDIGO DE ACCESO:</div>
             <div id="txtFichaCodigo" class="ficha-codigo">000000</div>
             <div style="font-size: 12px; color: #000; font-weight: bold; margin-top: 15px; background: #e8f5e9; padding: 5px 10px; border-radius: 5px;">VÁLIDO POR 24 HORAS</div>
         </div>
@@ -89,9 +87,16 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
         <h3>Tarifas de la App</h3>
         <label>Precio base por viaje</label><input type="number" id="precioBase">
         <label>Precio por km</label><input type="number" id="precioKm">
-        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-        <label>Monto suscripción 24hs (Info)</label><input type="number" id="montoFijo">
         <button class="btn-ok" onclick="guardarTarifas()">Guardar en servidor</button>
+    </div>
+</div>
+
+<div id="mensajes" class="pantalla">
+    <div class="card">
+        <h3>Mensajería Masiva</h3>
+        <select id="selectDestino"><option value="choferes">Todos los conductores</option><option value="pasajeros">Todos los pasajeros</option></select>
+        <input type="text" id="msgMasivo" placeholder="Escribí el mensaje">
+        <button class="btn-ok" onclick="alert('Mensaje enviado')">Enviar a todos</button>
     </div>
 </div>
 
@@ -108,12 +113,14 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 
 <script>
 let listaUsuariosGlobal = [];
+
 function mostrar(id){
     document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
     document.getElementById(id).classList.add('activa');
     if(id === 'viajes') cargarViajesReales();
     if(id === 'tarifas') cargarTarifas();
 }
+
 async function cargarDatosReales() {
     try {
         const res = await fetch('/obtener-usuarios');
@@ -124,8 +131,9 @@ async function cargarDatosReales() {
         document.getElementById('pTotal').innerText = pasas.length;
         actualizarTablaConductores(conds);
         actualizarTablaPasajeros(pasas);
-    } catch (e) { console.error("Error cargando usuarios"); }
+    } catch (e) { console.error("Error usuarios"); }
 }
+
 function actualizarTablaConductores(conds) {
     let tC = document.getElementById('tablaConductores');
     tC.innerHTML = `<tr><th>Chofer (Ver Perfil)</th><th>Estado</th><th>Recaudado</th><th>Acción</th></tr>`;
@@ -135,6 +143,7 @@ function actualizarTablaConductores(conds) {
         tC.innerHTML += `<tr id="fila-${c.telefono}"><td><a href="#" onclick="verPerfilCompleto('${c.telefono}')" style="color:#4caf50; text-decoration:none;"><b>${c.nombre || 'S/N'}</b></a><br><small>${c.telefono}</small></td><td><span class="${docOk?'estado-ok':'estado-pendiente'}">${docOk?'DOC: OK':'DOC: PEND'}</span><br><span class="${pagoAlDia?'estado-ok':'estado-off'}">${pagoAlDia?'PAGO: OK':'PAGO: VENC'}</span></td><td>$0</td><td><button class="btn-accion" style="background:#4caf50;" onclick="aprobarDocumentacion('${c.telefono}')">✔</button><button class="btn-accion" style="background:#25d366;" onclick="window.open('https://wa.me/${c.telefono}')">✉</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${c.telefono}')">✖</button></td></tr>`;
     });
 }
+
 function actualizarTablaPasajeros(pasas) {
     let tP = document.getElementById('tablaPasajeros');
     tP.innerHTML = `<tr><th>Nombre</th><th>Teléfono</th><th>Acción</th></tr>`;
@@ -143,6 +152,7 @@ function actualizarTablaPasajeros(pasas) {
         tP.innerHTML += `<tr id="fila-${p.telefono}"><td>${p.nombre || 'S/N'}</td><td>${p.telefono}</td><td><button id="btnLock-${p.telefono}" class="btn-accion" style="background:${estaBloqueado ? '#f44336' : '#ff9800'};" onclick="bloquearPasajero('${p.telefono}')">🔒</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">✖</button></td></tr>`; 
     });
 }
+
 async function cargarViajesReales() {
     try {
         const res = await fetch('/obtener-viajes');
@@ -157,23 +167,27 @@ async function cargarViajesReales() {
         });
     } catch (e) { console.error("Error viajes"); }
 }
+
 async function bloquearPasajero(tel) {
     if(confirm("¿Bloquear permanentemente?")) {
         await fetch('/bloquear-usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
     }
 }
+
 async function eliminarUsuario(tel) {
     if(confirm("¿Eliminar definitivamente?")) {
         document.getElementById(`fila-${tel}`).remove();
         await fetch('/eliminar-usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
     }
 }
+
 async function aprobarDocumentacion(tel) {
     if(confirm("¿Aprobar documentación?")) {
         await fetch('/aprobar-chofer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: tel }) });
         cargarDatosReales();
     }
 }
+
 function verPerfilCompleto(tel) {
     const u = listaUsuariosGlobal.find(u => u.telefono === tel);
     if(u) {
@@ -184,7 +198,9 @@ function verPerfilCompleto(tel) {
         document.getElementById('modalPerfil').style.display = 'block';
     }
 }
+
 function cerrarPerfil() { document.getElementById('modalPerfil').style.display = 'none'; }
+
 async function cargarTarifas() {
     try {
         const res = await fetch('/obtener-tarifas');
@@ -193,17 +209,20 @@ async function cargarTarifas() {
         document.getElementById('precioKm').value = data.precioKm || "";
     } catch (e) {}
 }
+
 async function guardarTarifas() {
     const pBase = parseInt(document.getElementById('precioBase').value);
     const pKm = parseInt(document.getElementById('precioKm').value);
     await fetch('/actualizar-tarifas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precioBase: pBase, precioKm: pKm }) });
     alert('Tarifas guardadas');
 }
+
 function guardarConfiguracion() {
     const config = { app: document.getElementById('confApp').value, tel: document.getElementById('confTel').value, mail: document.getElementById('confMail').value, alias: document.getElementById('confAlias').value };
     localStorage.setItem('configAdmin', JSON.stringify(config));
     alert('Configuración guardada');
 }
+
 async function generarNuevoCodigo() {
     const nuevoCod = Math.floor(100000 + Math.random() * 900000).toString();
     try {
@@ -211,9 +230,17 @@ async function generarNuevoCodigo() {
         if(res.ok) { document.getElementById('txtFichaCodigo').innerText = nuevoCod; document.getElementById('contenedorFicha').style.display = 'flex'; }
     } catch (e) { alert("Error"); }
 }
+
 window.onload = () => {
     cargarDatosReales();
     cargarTarifas();
+    const config = JSON.parse(localStorage.getItem('configAdmin'));
+    if(config) {
+        document.getElementById('confApp').value = config.app || "";
+        document.getElementById('confTel').value = config.tel || "";
+        document.getElementById('confMail').value = config.mail || "";
+        document.getElementById('confAlias').value = config.alias || "";
+    }
 };
 </script>
 </body>
