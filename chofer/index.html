@@ -54,11 +54,14 @@
       <button onclick="validarCodigo()" style="background: #ffb300;">ACTIVAR AHORA</button>
   </div>
   <div id="areaTrabajo">
-      <div id="timerContenedor"><div id="reloj">00:00:00</div></div>
+      <div id="timerContenedor">
+          <div style="font-size: 10px; color: #888; margin-bottom: 4px;">TIEMPO DE CONEXIÓN RESTANTE</div>
+          <div id="reloj">00:00:00</div>
+      </div>
       <div class="status-bar"><span class="badge" id="badgeSistema">SISTEMA INACTIVO</span><span id="txtNombreChofer">Cargando...</span></div>
       <div class="card" style="padding: 5px;"><div id="map"></div></div>
       <div class="card" style="text-align:center;">
-          <h3 id="txtEstado" style="color:#ff5252; margin:0;">ESTADO: BLOQUEADO</h3>
+          <h3 id="txtEstado" style="color:#ff5252; margin:0; margin-bottom:10px;">ESTADO: BLOQUEADO</h3>
           <button id="btnToggle" onclick="toggleEstado()" disabled>ESPERANDO ACTIVACIÓN</button>
           <button class="btn-desconectar" onclick="cerrarSesion()">DESCONECTARME</button>
       </div>
@@ -71,6 +74,7 @@ let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, marker, estadoActual = "disponible", pagoConfirmado = false;
 let viajeActualId = null; 
 let direccionOrigenViaje = "";
+let intervaloReloj;
 
 async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
@@ -99,16 +103,41 @@ function activarModoTrabajo(vencimiento) {
     pagoConfirmado = true;
     document.getElementById('seccionActivacion').style.display = 'none';
     document.getElementById('timerContenedor').style.display = 'block';
+    document.getElementById('badgeSistema').innerText = "SISTEMA ACTIVO";
     document.getElementById('badgeSistema').style.background = "#00c853";
     document.getElementById('btnToggle').disabled = false;
+    document.getElementById('btnToggle').innerText = "PONERME COMO OCUPADO";
     document.getElementById('txtEstado').innerText = "ESTADO: DISPONIBLE";
     document.getElementById('txtEstado').style.color = "#00c853";
+    iniciarReloj(vencimiento);
 }
 
 function desactivarModoTrabajo() {
     pagoConfirmado = false;
     document.getElementById('seccionActivacion').style.display = 'block';
+    document.getElementById('timerContenedor').style.display = 'none';
     document.getElementById('btnToggle').disabled = true;
+    document.getElementById('txtEstado').innerText = "ESTADO: BLOQUEADO";
+    document.getElementById('txtEstado').style.color = "#ff5252";
+    if(intervaloReloj) clearInterval(intervaloReloj);
+}
+
+function iniciarReloj(vencimiento) {
+    if(intervaloReloj) clearInterval(intervaloReloj);
+    const destino = new Date(vencimiento).getTime();
+    intervaloReloj = setInterval(() => {
+        const ahora = new Date().getTime();
+        const diff = destino - ahora;
+        if (diff <= 0) {
+            clearInterval(intervaloReloj);
+            desactivarModoTrabajo();
+            return;
+        }
+        const h = Math.floor(diff/(1000*60*60));
+        const m = Math.floor((diff%(1000*60*60))/(1000*60));
+        const s = Math.floor((diff%(1000*60))/1000);
+        document.getElementById('reloj').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
 }
 
 function initMap() {
@@ -128,12 +157,16 @@ function transmitirUbicacion() {
 }
 
 function toggleEstado() {
+    if(!pagoConfirmado) return;
     estadoActual = (estadoActual === "disponible") ? "ocupado" : "disponible";
     document.getElementById("txtEstado").innerText = "ESTADO: " + estadoActual.toUpperCase();
+    document.getElementById("txtEstado").style.color = (estadoActual === "disponible") ? "#00c853" : "#ff5252";
+    document.getElementById("btnToggle").innerText = (estadoActual === "disponible") ? "PONERME COMO OCUPADO" : "PONERME COMO DISPONIBLE";
 }
 
-// BÚSQUEDA DE VIAJES
+// BÚSQUEDA DE VIAJES (CON CANDADO DE SEGURIDAD)
 setInterval(async () => {
+    // Si el tiempo se acabó (pagoConfirmado es false), no busca nada.
     if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId) return;
     try {
         const res = await fetch('/viajes-pendientes');
@@ -145,7 +178,7 @@ setInterval(async () => {
             document.getElementById("datosViaje").innerHTML = `<b>${v.pasajero}</b><br>${v.origen}<br>-> ${v.destino}<br><b>${v.precio}</b>`;
             document.getElementById("modalViaje").style.display = "block";
         }
-    } catch (e) { console.log("Error"); }
+    } catch (e) { console.log("Error buscando viajes"); }
 }, 4000);
 
 document.getElementById('btnAceptarViaje').onclick = async function() {
@@ -165,6 +198,10 @@ async function rechazarViaje() {
         document.getElementById("modalViaje").style.display = "none";
         viajeActualId = null;
     } catch (e) { alert("Error"); }
+}
+
+function cerrarSesion() {
+    if(confirm("¿Cerrar sesión?")) { localStorage.removeItem("sesion"); location.href = "/"; }
 }
 
 window.onload = initApp;
