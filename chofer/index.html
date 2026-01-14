@@ -37,7 +37,7 @@
   #seccionActivacion { background: #1a1a1a; border: 1px solid #ffb300; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
   #inputToken { width: 80%; padding: 12px; border-radius: 8px; border: none; margin-bottom: 10px; text-align: center; font-size: 18px; letter-spacing: 3px; background: #333; color: #fff; }
 
-  #modalViaje { display: none; position: fixed; bottom: 20px; left: 5%; width: 90%; background: #00c853; color: #000; padding: 20px; border-radius: 15px; z-index: 1000; text-align: center; }
+  #modalViaje { display: none; position: fixed; bottom: 20px; left: 5%; width: 90%; background: #00c853; color: #000; padding: 20px; border-radius: 15px; z-index: 1000; text-align: center; box-shadow: 0 0 20px rgba(0,200,83,0.5); }
 
   /* BOTON INSTALACION */
   #btnInstalarChofer { display: none; background: #fff; color: #000; padding: 15px; text-align: center; font-weight: bold; border-radius: 10px; margin-bottom: 15px; cursor: pointer; border: 2px solid #00c853; width: 100%; font-size: 14px; }
@@ -57,8 +57,8 @@
 
 <div id="modalViaje">
     <h2 style="margin:0">🚕 ¡NUEVO VIAJE!</h2>
-    <p id="datosViaje" style="font-weight:bold">Cargando...</p>
-    <button onclick="aceptarViaje()" style="background:#000; color:#00c853;">ACEPTAR VIAJE</button>
+    <p id="datosViaje" style="font-weight:bold; margin: 10px 0;">Cargando...</p>
+    <button id="btnAceptarViaje" style="background:#000; color:#00c853;">ACEPTAR VIAJE</button>
 </div>
 
 <div class="screen">
@@ -99,9 +99,9 @@ let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, marker, estadoActual = "disponible", pagoConfirmado = false;
 let intervaloReloj;
 let deitPrompt; 
-let direccionOrigenViaje = ""; // Para guardar el origen del pasajero
+let viajeActualId = null; 
+let direccionOrigenViaje = "";
 
-// Lógica de instalación para chofer
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deitPrompt = e;
@@ -137,7 +137,8 @@ async function cargarDatosChofer() {
         const yo = usuarios.find(u => u.telefono === sesion.telefono);
 
         if (yo) {
-            document.getElementById('txtNombreChofer').innerText = yo.nombre || sesion.telefono;
+            sesion.nombre = yo.nombre || sesion.telefono;
+            document.getElementById('txtNombreChofer').innerText = sesion.nombre;
             if (yo.foto) {
                 document.getElementById('imgMiniaturaHeader').src = yo.foto;
                 document.getElementById('imgMiniaturaHeader').style.display = 'block';
@@ -260,34 +261,63 @@ function cerrarSesion() {
     }
 }
 
-// === VINCULACIÓN: BUSCAR VIAJES DEL PASAJERO ===
+// === VINCULACIÓN: BUSCAR VIAJES DEL PASAJERO (CORREGIDO) ===
 setInterval(async () => {
-    if (estadoActual !== "disponible" || !pagoConfirmado) return;
+    // Si el chofer no está disponible, no busca viajes
+    if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId) return;
+
     try {
-        const res = await fetch('/obtener-viajes-pendientes');
+        const res = await fetch('/viajes-pendientes');
         const viajes = await res.json();
+        
         if (viajes && viajes.length > 0) {
-            const v = viajes[viajes.length - 1];
-            direccionOrigenViaje = v.origen; // Guardamos el origen
+            const v = viajes[0]; // Tomamos el más reciente
+            viajeActualId = v._id;
+            direccionOrigenViaje = v.origen;
+            
             document.getElementById("datosViaje").innerHTML = `
-                <b>PASAJERO:</b> ${v.pasajeroNombre}<br>
-                <b>ORIGEN:</b> ${v.origen}<br>
-                <b>DESTINO:</b> ${v.destino}<br>
-                <b>${v.precio}</b>
+                <div style="font-size: 16px; margin-bottom: 5px;"><b>PASAJERO:</b> ${v.pasajero}</div>
+                <div style="font-size: 14px;"><b>DESDE:</b> ${v.origen}</div>
+                <div style="font-size: 14px;"><b>HASTA:</b> ${v.destino}</div>
+                <div style="font-size: 18px; margin-top: 5px;"><b>${v.precio}</b></div>
             `;
             document.getElementById("modalViaje").style.display = "block";
+            
+            // Sonido opcional (beep de sistema)
+            try { window.navigator.vibrate([200, 100, 200]); } catch(e){}
         }
     } catch (e) { console.log("Error buscando viajes"); }
-}, 5000);
+}, 4000);
 
-function aceptarViaje() {
-    document.getElementById("modalViaje").style.display = "none";
-    if (direccionOrigenViaje) {
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(direccionOrigenViaje)}&travelmode=driving`, '_blank');
-    } else {
-        alert("Viaje aceptado. Iniciando navegación...");
-    }
-}
+// Botón aceptar con lógica de servidor
+document.getElementById('btnAceptarViaje').onclick = async function() {
+    if (!viajeActualId) return;
+
+    try {
+        const res = await fetch('/aceptar-viaje', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                viajeId: viajeActualId,
+                choferNombre: sesion.nombre,
+                choferTel: sesion.telefono
+            })
+        });
+
+        if (res.ok) {
+            document.getElementById("modalViaje").style.display = "none";
+            // Abrir GPS
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(direccionOrigenViaje)}&travelmode=driving`, '_blank');
+            // Ponemos al chofer como ocupado automáticamente
+            toggleEstado(); 
+            viajeActualId = null; 
+        } else {
+            alert("El viaje ya fue tomado por otro chofer.");
+            document.getElementById("modalViaje").style.display = "none";
+            viajeActualId = null;
+        }
+    } catch (e) { alert("Error al aceptar viaje"); }
+};
 
 window.onload = initApp;
 </script>
