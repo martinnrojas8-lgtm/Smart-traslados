@@ -56,7 +56,7 @@
       <div class="card" style="padding: 5px;"><div id="map"></div></div>
       
       <div id="controlesViaje" class="card">
-          <p id="destinoActual" style="margin:0; font-weight:bold; color:#00c853;"></p>
+          <p id="destinoActual" style="margin:0; font-weight:bold; color:#00c853; font-size: 14px;"></p>
           <button onclick="finalizarViaje()" style="background:#ff5252; color:#fff;">FINALIZAR VIAJE</button>
       </div>
 
@@ -140,20 +140,32 @@ function iniciarReloj(vencimiento) {
 function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        map = new google.maps.Map(document.getElementById("map"), { center: myPos, zoom: 16, disableDefaultUI: true });
-        marker = new google.maps.Marker({ position: myPos, map: map, icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
+        map = new google.maps.Map(document.getElementById("map"), { 
+            center: myPos, 
+            zoom: 17, 
+            disableDefaultUI: true,
+            styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
+        });
+        marker = new google.maps.Marker({ 
+            position: myPos, 
+            map: map, 
+            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } 
+        });
         
         directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true });
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
     });
 }
 
 function transmitirUbicacion() {
     if(!pagoConfirmado) return; 
     navigator.geolocation.getCurrentPosition(pos => {
-        fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: pos.coords.latitude, lng: pos.coords.longitude, estado: estadoActual }) });
-        if(marker) marker.setPosition({lat: pos.coords.latitude, lng: pos.coords.longitude});
-        if(viajeActualId) map.setCenter({lat: pos.coords.latitude, lng: pos.coords.longitude});
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, estado: estadoActual }) });
+        
+        if(marker) marker.setPosition(coords);
+        // Ajuste: El mapa sigue al chofer pero con suavidad
+        if(viajeActualId) map.panTo(coords);
     });
 }
 
@@ -192,7 +204,6 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
         document.getElementById("controlesViaje").style.display = "block";
         document.getElementById("destinoActual").innerText = "Pasajero en: " + direccionOrigenViaje;
         
-        // Trazar ruta dentro del mapa de la app
         trazarRuta(direccionOrigenViaje);
         estadoActual = "en viaje";
 
@@ -207,7 +218,11 @@ function trazarRuta(destino) {
             travelMode: 'DRIVING'
         };
         directionsService.route(request, (result, status) => {
-            if (status === 'OK') directionsRenderer.setDirections(result);
+            if (status === 'OK') {
+                directionsRenderer.setDirections(result);
+                // Ajuste automático para que se vea toda la ruta inicialmente
+                map.setZoom(16);
+            }
         });
     });
 }
@@ -218,7 +233,14 @@ function finalizarViaje() {
     directionsRenderer.setDirections({routes: []});
     document.getElementById("controlesViaje").style.display = "none";
     document.getElementById("controlesEstandar").style.display = "block";
-    toggleEstado(); // Lo pone disponible de nuevo
+    
+    // Resetear mapa a vista normal
+    navigator.geolocation.getCurrentPosition(pos => {
+        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        map.setZoom(17);
+    });
+    
+    toggleEstado(); 
 }
 
 async function rechazarViaje() {
