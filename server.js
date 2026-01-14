@@ -259,14 +259,15 @@ app.get('/estado-suscripcion/:telefono', async (req, res) => {
     } catch (e) { res.status(500).send(); }
 });
 
+// MODIFICADO PARA QUE NO FILTRE POR TIEMPO Y EVITAR ERROR DE ZONA HORARIA
 app.get('/obtener-choferes-activos', async (req, res) => {
     try {
-        const choferes = await Ubicacion.find({ ultimaAct: { $gt: new Date(Date.now() - 5 * 60 * 1000) } });
+        const choferes = await Ubicacion.find({}); 
         res.json(choferes);
     } catch (e) { res.status(500).send(); }
 });
 
-// NUEVA RUTA PARA GPS
+// NUEVA RUTA PARA GPS (VERIFICADA)
 app.post('/actualizar-ubicacion-chofer', async (req, res) => {
     try {
         const { telefono, lat, lng, estado } = req.body;
