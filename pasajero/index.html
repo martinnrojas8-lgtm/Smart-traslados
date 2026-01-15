@@ -80,7 +80,8 @@ async function initApp() {
     
     map = new google.maps.Map(document.getElementById("map"), { center: {lat:-35.638, lng:-59.779}, zoom: 15, disableDefaultUI: true });
     directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({ map });
+    // Agregamos preserveViewport: true para que el recálculo no le mueva el zoom al pasajero
+    directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true, preserveViewport: true });
 
     const autoO = new google.maps.places.Autocomplete(document.getElementById("origen"), { componentRestrictions:{country:"ar"} });
     const autoD = new google.maps.places.Autocomplete(document.getElementById("destino"), { componentRestrictions:{country:"ar"} });
@@ -150,7 +151,7 @@ function iniciarModoSeguimiento() {
     document.getElementById("txtA").innerText = `${viajeInfo.autoModelo} (${viajeInfo.autoColor}) • ${viajeInfo.autoPatente}`;
     document.getElementById("btnLlamar").onclick = () => window.open(`tel:${viajeInfo.choferTel}`);
 
-    // Limpiamos la ruta previa para ver solo el auto
+    // Limpiamos la ruta previa para ver solo el auto al inicio del seguimiento
     directionsRenderer.setDirections({routes: []});
 
     setInterval(async () => {
@@ -160,6 +161,8 @@ function iniciarModoSeguimiento() {
             const c = choferes.find(x => x.telefono === viajeInfo.choferTel);
             if(c) {
                 const p = { lat: Number(c.lat), lng: Number(c.lng) };
+                
+                // MANTENEMOS TU LÓGICA DE MARCADOR INTACTA
                 if(!markerC) {
                     markerC = new google.maps.Marker({ 
                         position: p, 
@@ -171,6 +174,18 @@ function iniciarModoSeguimiento() {
                 }
                 map.panTo(p);
                 if (map.getZoom() < 16) map.setZoom(16);
+
+                // NUEVO: TRAZADO DE RUTA DINÁMICA HACIA EL DESTINO
+                // Si el chofer ya aceptó, trazamos desde su posición actual al destino final del viaje
+                directionsService.route({
+                    origin: p, // La ubicación actual del chofer que acabamos de recibir
+                    destination: viajeInfo.destino,
+                    travelMode: 'DRIVING'
+                }, (res, stat) => {
+                    if (stat === 'OK') {
+                        directionsRenderer.setDirections(res);
+                    }
+                });
             }
         } catch(e) { console.log("Error GPS", e); }
     }, 5000);
