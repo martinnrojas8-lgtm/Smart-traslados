@@ -110,24 +110,23 @@
     <button id="btnInstalar" class="btn btn-download">Instalar App Oficial</button>
   </div>
 
-<div id="modalTerms" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:3000; color:#fff; padding:20px; overflow:auto;">
-  <h2 style="color:#2ecc71">Términos y Condiciones</h2>
-  <p style="font-size:13px; line-height:1.6; color:#ccc">
-    Smart Traslados es una plataforma tecnológica que conecta pasajeros con
-    conductores independientes. No presta servicios de transporte ni asume
-    responsabilidad por los traslados realizados.
-    <br><br>
-    Los conductores actúan de manera independiente y son los únicos responsables
-    del cumplimiento de las leyes, seguros y condiciones del servicio.
-    <br><br>
-    Al utilizar la plataforma, el usuario acepta liberar a Smart Traslados de
-    cualquier responsabilidad derivada de accidentes, daños, pérdidas o conflictos.
-  </p>
-  <button class="btn btn-verde" onclick="cerrarTerms()">Cerrar</button>
+<div id="modalTerms" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:3000; color:#fff; padding:25px; overflow:auto;">
+  <h2 style="color:#2ecc71; margin-top:0;">Términos y Condiciones</h2>
+  <div style="font-size:13px; line-height:1.6; color:#ccc; text-align:left;">
+    <p><strong>1. NATURALEZA DEL SERVICIO:</strong> Smart Traslados es una plataforma tecnológica que facilita el contacto entre conductores independientes y pasajeros. Smart Traslados <strong>NO ES UNA EMPRESA DE TRANSPORTE</strong>, ni de logística ni de delivery.</p>
+    
+    <p><strong>2. MODELO DE NEGOCIO:</strong> A diferencia de otras plataformas, Smart Traslados no percibe comisiones sobre los viajes. El Chofer abona una cuota fija por el uso del software. El Chofer es dueño del 100% de lo recaudado y Smart Traslados no interviene en el cobro al pasajero.</p>
+    
+    <p><strong>3. RESPONSABILIDAD:</strong> El Chofer declara contar con licencia profesional, VTV y <strong>Seguro de Responsabilidad Civil hacia Terceros y Personas Transportadas</strong> vigente. Smart Traslados queda exenta de toda responsabilidad por siniestros, daños, accidentes o conflictos entre las partes.</p>
+    
+    <p><strong>4. INDEPENDENCIA:</strong> No existe relación de dependencia ni vínculo laboral. El Chofer es un usuario independiente que decide libremente sus horarios y servicios.</p>
+    
+    <p><strong>5. PRIVACIDAD:</strong> Se utilizarán datos de geolocalización para el correcto funcionamiento del servicio y seguridad de los usuarios durante el traslado.</p>
+  </div>
+  <button class="btn btn-verde" onclick="cerrarTerms()" style="margin-top:20px;">ENTENDIDO Y CERRAR</button>
 </div>
 
 <script>
-// Lógica de instalación, sesión y registro exactamente igual...
 let deferredPrompt;
 const btnInstalar = document.getElementById('btnInstalar');
 
@@ -175,7 +174,7 @@ function cerrarTerms() {
 }
 function validarTerms() {
     if (!document.getElementById("chkTerms").checked) {
-        alert("Debés aceptar los Términos y Condiciones.");
+        alert("Debés aceptar los Términos y Condiciones para continuar.");
         return false;
     }
     return true;
