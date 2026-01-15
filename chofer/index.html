@@ -72,10 +72,11 @@
 
   <div class="screen">
       <div id="seccionActivacion" style="display: none;">
-          <div class="card" style="border-color: #ffb300; text-align: center;">
-            <h3 style="color: #ffb300; margin-top: 0;">Cuenta No Activa</h3>
-            <p style="font-size: 12px; margin-bottom: 15px;">Contacte a soporte para activar su tiempo.</p>
-            <button onclick="cargarPinActivacion()" style="background: #ffb300; color: #000; width: 90%; margin: 0 auto;">INGRESAR PIN DE ACTIVACIÓN</button>
+          <div class="card" style="border: 2px dashed #ffb300; text-align: center; background: rgba(255,179,0,0.05);">
+            <h3 style="color: #ffb300; margin-top: 0;">Suscripción Requerida</h3>
+            <p style="font-size: 13px; color: #ccc;">Para recibir viajes, ingresá el PIN de activación de 24hs.</p>
+            <input type="number" id="pinInput" placeholder="0000" style="width: 120px; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; font-size: 18px; margin-bottom: 10px;">
+            <button onclick="cargarPinActivacion()" style="background: #ffb300; color: #000; font-weight: bold;">ACTIVAR AHORA</button>
           </div>
       </div>
 
@@ -112,7 +113,7 @@ let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, marker, directionsService, directionsRenderer, estadoActual = "disponible", pagoConfirmado = false, viajeActualId = null, direccionOrigenViaje = "", direccionDestinoViaje = "", intervaloReloj;
 let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; 
-let faseViaje = 1; // 1: Buscar, 2: Ir al destino, 3: Finalizar
+let faseViaje = 1; 
 
 async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
@@ -145,9 +146,9 @@ function activarModoTrabajo(vencimiento) {
     document.getElementById('badgeSistema').innerText = "SISTEMA ACTIVO";
     document.getElementById('badgeSistema').style.background = "#00c853";
     document.getElementById('btnToggle').disabled = false;
-    document.getElementById('btnToggle').innerText = "PONERME COMO OCUPADO";
-    document.getElementById('txtEstado').innerText = "ESTADO: DISPONIBLE";
-    document.getElementById('txtEstado').style.color = "#00c853";
+    document.getElementById('btnToggle').innerText = (estadoActual === "disponible") ? "PONERME COMO OCUPADO" : "PONERME COMO DISPONIBLE";
+    document.getElementById('txtEstado').innerText = "ESTADO: " + estadoActual.toUpperCase();
+    document.getElementById('txtEstado').style.color = (estadoActual === "disponible") ? "#00c853" : "#ff5252";
     iniciarReloj(vencimiento);
 }
 
@@ -189,7 +190,6 @@ function initMap() {
             map: map, 
             icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } 
         });
-        
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
     });
@@ -200,7 +200,6 @@ function transmitirUbicacion() {
     navigator.geolocation.getCurrentPosition(pos => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, estado: estadoActual }) });
-        
         if(marker) marker.setPosition(coords);
         if(viajeActualId) map.panTo(coords);
     });
@@ -236,27 +235,21 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
             viajeId: viajeActualId, choferNombre: sesion.nombre, choferTel: sesion.telefono,
             autoModelo: datosAuto.modelo, autoPatente: datosAuto.patente, autoColor: datosAuto.color
         }) });
-        
         document.getElementById("modalViaje").style.display = "none";
         document.getElementById("controlesEstandar").style.display = "none";
         document.getElementById("controlesViaje").style.display = "block";
-        
-        // FASE 1: BUSCAR PASAJERO
         faseViaje = 1;
         document.getElementById("destinoActual").innerText = "BUSCANDO A: " + direccionOrigenViaje;
         document.getElementById("btnAccionViaje").innerText = "YA BUSQUÉ AL PASAJERO";
         document.getElementById("btnAccionViaje").style.background = "#ffb300";
         document.getElementById("btnAccionViaje").style.color = "#000";
-
         trazarRuta(direccionOrigenViaje);
         estadoActual = "en viaje";
-
     } catch (e) { alert("Error al aceptar"); }
 };
 
 function gestionarFaseViaje() {
     if (faseViaje === 1) {
-        // FASE 2: IR AL DESTINO
         faseViaje = 2;
         document.getElementById("destinoActual").innerText = "YENDO A: " + direccionDestinoViaje;
         document.getElementById("btnAccionViaje").innerText = "IR AL DESTINO";
@@ -264,55 +257,34 @@ function gestionarFaseViaje() {
         trazarRuta(direccionDestinoViaje);
     } 
     else if (faseViaje === 2) {
-        // FASE 3: FINALIZAR
         faseViaje = 3;
         document.getElementById("destinoActual").innerText = "LLEGADA AL DESTINO";
         document.getElementById("btnAccionViaje").innerText = "FINALIZAR VIAJE";
         document.getElementById("btnAccionViaje").style.background = "#ff5252";
         document.getElementById("btnAccionViaje").style.color = "#fff";
     }
-    else if (faseViaje === 3) {
-        finalizarViaje();
-    }
+    else if (faseViaje === 3) { finalizarViaje(); }
 }
 
 function trazarRuta(destino) {
     ultimaRutaDestino = destino; 
     navigator.geolocation.getCurrentPosition(pos => {
-        const request = {
+        directionsService.route({
             origin: { lat: pos.coords.latitude, lng: pos.coords.longitude },
             destination: destino,
             travelMode: 'DRIVING'
-        };
-        directionsService.route(request, (result, status) => {
-            if (status === 'OK') {
-                directionsRenderer.setDirections(result);
-            }
-        });
+        }, (result, status) => { if (status === 'OK') directionsRenderer.setDirections(result); });
     });
 }
 
-// Recálculo cada 20 segundos
-setInterval(() => {
-    if (viajeActualId && estadoActual === "en viaje" && ultimaRutaDestino) {
-        trazarRuta(ultimaRutaDestino);
-    }
-}, 20000);
+setInterval(() => { if (viajeActualId && estadoActual === "en viaje" && ultimaRutaDestino) trazarRuta(ultimaRutaDestino); }, 20000);
 
 function finalizarViaje() {
-    viajeActualId = null;
-    estadoActual = "disponible";
-    ultimaRutaDestino = "";
-    faseViaje = 1;
+    viajeActualId = null; estadoActual = "disponible"; ultimaRutaDestino = ""; faseViaje = 1;
     directionsRenderer.setDirections({routes: []});
     document.getElementById("controlesViaje").style.display = "none";
     document.getElementById("controlesEstandar").style.display = "block";
-    
-    navigator.geolocation.getCurrentPosition(pos => {
-        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        map.setZoom(17);
-    });
-    
+    navigator.geolocation.getCurrentPosition(pos => { map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); map.setZoom(17); });
     toggleEstado(); 
 }
 
@@ -323,23 +295,17 @@ async function rechazarViaje() {
 }
 
 async function cargarPinActivacion() {
-    const pin = prompt("Ingresá el PIN de activación:");
-    if (pin) {
-        try {
-            const res = await fetch('/activar-cuenta', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telefono: sesion.telefono, pin: pin })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert("¡Cuenta activada!");
-                cargarDatosChofer();
-            } else {
-                alert(data.mensaje || "PIN incorrecto");
-            }
-        } catch (e) { alert("Error de conexión"); }
-    }
+    const pin = document.getElementById("pinInput").value;
+    if (!pin) return alert("Ingresá un PIN.");
+    try {
+        const res = await fetch('/activar-cuenta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telefono: sesion.telefono, pin: pin })
+        });
+        if (res.ok) { alert("¡Cuenta activada!"); cargarDatosChofer(); } 
+        else { const d = await res.json(); alert(d.mensaje || "PIN incorrecto"); }
+    } catch (e) { alert("Error de conexión"); }
 }
 
 function cerrarSesion() { if(confirm("¿Cerrar?")) { localStorage.clear(); location.href = "/"; } }
