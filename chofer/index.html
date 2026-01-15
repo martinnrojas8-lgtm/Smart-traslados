@@ -67,7 +67,7 @@
       <div id="seccionActivacion" style="display: none;">
           <div class="card" style="border: 2px dashed #ffb300; text-align: center; background: rgba(255,179,0,0.05);">
             <h3 style="color: #ffb300; margin-top: 0;">Cuenta No Activa</h3>
-            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px;">Ingresá el PIN de 6 dígitos para activar.</p>
+            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px;">Ingresá tu PIN de 6 dígitos.</p>
             <input type="text" id="pinInput" placeholder="_ _ _ _ _ _" maxlength="6" 
                    style="width: 80%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; text-align: center; font-size: 22px; letter-spacing: 4px; margin-bottom: 10px;">
             <button onclick="cargarPinActivacion()" style="background:#ffb300; color:#000;">ACTIVAR AHORA</button>
@@ -279,31 +279,35 @@ async function rechazarViaje() {
     viajeActualId = null;
 }
 
-// CONECTIVIDAD REFORZADA PARA ACTIVACION
+// ACTIVACIÓN CON CONECTIVIDAD BLINDADA
 async function cargarPinActivacion() {
-    const pin = document.getElementById("pinInput").value;
-    if (pin.length < 6) return alert("El PIN debe ser de 6 dígitos.");
+    const pinVal = document.getElementById("pinInput").value.trim();
+    if (pinVal.length < 6) return alert("El PIN debe ser de 6 dígitos.");
     
+    // Respaldo de teléfono si sesion falla
+    const tel = sesion.telefono || localStorage.getItem("telefonoUsuario");
+    if(!tel) return alert("Error: No se encontró tu teléfono en la sesión.");
+
     try {
-        const respuesta = await fetch('/activar-cuenta', {
+        const res = await fetch('/activar-cuenta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                telefono: sesion.telefono, 
-                pin: pin.toString() 
+                telefono: tel.toString(), 
+                pin: pinVal.toString() 
             })
         });
         
-        const d = await respuesta.json();
+        const d = await res.json();
         
-        if (respuesta.ok) {
+        if (res.ok) {
             alert("¡Cuenta activada exitosamente!");
-            await cargarDatosChofer(); // Recarga los datos de suscripción sin recargar la página entera
+            location.reload(); 
         } else {
-            alert(d.mensaje || "PIN incorrecto o ya utilizado.");
+            alert(d.mensaje || "PIN incorrecto.");
         }
-    } catch (error) {
-        alert("Error de conexión con el servidor. Reintente en unos segundos.");
+    } catch (e) {
+        alert("Error de conexión. Verificá tu señal e intentá de nuevo.");
     }
 }
 
