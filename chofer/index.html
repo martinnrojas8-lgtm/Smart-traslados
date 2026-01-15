@@ -65,10 +65,11 @@
 
   <div class="screen">
       <div id="seccionActivacion" style="display: none;">
-          <div class="card" style="border: 2px dashed #ffb300; text-align: center;">
+          <div class="card" style="border: 2px dashed #ffb300; text-align: center; background: rgba(255,179,0,0.05);">
             <h3 style="color: #ffb300; margin-top: 0;">Cuenta No Activa</h3>
-            <p style="font-size: 12px; margin-bottom: 10px;">Ingresá el PIN para activar tu tiempo.</p>
-            <input type="number" id="pinInput" placeholder="0000" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; text-align: center; font-size: 18px; margin-bottom: 10px;">
+            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px;">Ingresá el PIN de 6 dígitos para activar.</p>
+            <input type="text" id="pinInput" placeholder="_ _ _ _ _ _" maxlength="6" 
+                   style="width: 80%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; text-align: center; font-size: 22px; letter-spacing: 4px; margin-bottom: 10px;">
             <button onclick="cargarPinActivacion()" style="background:#ffb300; color:#000;">ACTIVAR AHORA</button>
           </div>
       </div>
@@ -172,14 +173,11 @@ function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         map = new google.maps.Map(document.getElementById("map"), { 
-            center: myPos, 
-            zoom: 17, 
-            disableDefaultUI: true,
+            center: myPos, zoom: 17, disableDefaultUI: true,
             styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
         });
         marker = new google.maps.Marker({ 
-            position: myPos, 
-            map: map, 
+            position: myPos, map: map, 
             icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } 
         });
         directionsService = new google.maps.DirectionsService();
@@ -261,8 +259,7 @@ function trazarRuta(destino) {
     navigator.geolocation.getCurrentPosition(pos => {
         directionsService.route({
             origin: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-            destination: destino,
-            travelMode: 'DRIVING'
+            destination: destino, travelMode: 'DRIVING'
         }, (result, status) => { if (status === 'OK') directionsRenderer.setDirections(result); });
     });
 }
@@ -282,18 +279,32 @@ async function rechazarViaje() {
     viajeActualId = null;
 }
 
+// CONECTIVIDAD REFORZADA PARA ACTIVACION
 async function cargarPinActivacion() {
     const pin = document.getElementById("pinInput").value;
-    if (!pin) return alert("Ingresá un PIN.");
+    if (pin.length < 6) return alert("El PIN debe ser de 6 dígitos.");
+    
     try {
-        const res = await fetch('/activar-cuenta', {
+        const respuesta = await fetch('/activar-cuenta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telefono: sesion.telefono, pin: pin })
+            body: JSON.stringify({ 
+                telefono: sesion.telefono, 
+                pin: pin.toString() 
+            })
         });
-        if (res.ok) { alert("¡Cuenta activada!"); cargarDatosChofer(); } 
-        else { const d = await res.json(); alert(d.mensaje || "PIN incorrecto"); }
-    } catch (e) { alert("Error de conexión"); }
+        
+        const d = await respuesta.json();
+        
+        if (respuesta.ok) {
+            alert("¡Cuenta activada exitosamente!");
+            await cargarDatosChofer(); // Recarga los datos de suscripción sin recargar la página entera
+        } else {
+            alert(d.mensaje || "PIN incorrecto o ya utilizado.");
+        }
+    } catch (error) {
+        alert("Error de conexión con el servidor. Reintente en unos segundos.");
+    }
 }
 
 function cerrarSesion() { if(confirm("¿Cerrar?")) { localStorage.clear(); location.href = "/"; } }
