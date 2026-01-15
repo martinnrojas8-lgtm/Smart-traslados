@@ -3,19 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <title>Smart Traslados – Chofer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.json">
 <style>
-  body{ margin:0; font-family:Arial, sans-serif; background:#000; color:#fff; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+  html, body { 
+    margin:0; 
+    padding:0; 
+    width:100%; 
+    height:100%; 
+    font-family:Arial, sans-serif; 
+    background:#000; 
+    color:#fff; 
+    overflow: hidden;
+  }
+
   header{ background:#111; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; flex-shrink: 0; }
   .perfil-header { display: flex; align-items: center; gap: 10px; cursor: pointer; background: #222; padding: 5px 12px; border-radius: 20px; border: 1px solid #444; }
   #imgMiniaturaHeader { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #00c853; background: #333; display: none; }
   
-  .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .screen{ padding:10px; flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .main-content { display: flex; flex-direction: column; height: calc(100vh - 55px); width: 100%; }
+  .screen{ padding:15px; overflow-y: auto; flex-grow: 1; }
   
   .card{ background:#111; border-radius:12px; padding:12px; margin-bottom:10px; border:1px solid #333; }
-  #map-container { width:100%; height:350px; min-height: 300px; border-radius:10px; overflow: hidden; position: relative; margin-bottom: 10px; flex-shrink: 0; }
+  #map-container { width:100%; height:350px; border-radius:10px; overflow: hidden; margin-bottom: 10px; flex-shrink: 0; }
   #map{ width:100%; height:100%; background:#222; }
   
   .status-bar{ display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
@@ -28,15 +38,15 @@
   
   #modalViaje { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 400px; background: #00c853; color: #000; padding: 20px; border-radius: 15px; z-index: 2000; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
 
+  /* ESTILO PARA EL INPUT DE ACTIVACIÓN */
+  #inputToken { width: 80%; padding: 12px; border-radius: 8px; border: none; margin-bottom: 10px; text-align: center; font-size: 18px; letter-spacing: 3px; background: #333; color: #fff; }
+
   @media screen and (orientation: landscape) {
-    header { padding: 5px 15px; }
-    .main-content { flex-direction: row; }
+    .main-content { flex-direction: row; } 
     #map-container { flex: 1.5; height: 100% !important; margin-bottom: 0; border-radius: 0; }
-    .screen { flex: 1; padding: 10px; overflow-y: auto; }
-    #timerContenedor { padding: 5px; }
-    #reloj { font-size: 18px; }
-    button { padding: 10px; font-size: 12px; }
-    .card { padding: 8px; }
+    .screen { flex: 1; padding: 10px; }
+    header { padding: 5px 15px; }
+    header h2 { font-size: 14px; }
   }
 </style>
 </head>
@@ -65,12 +75,11 @@
 
   <div class="screen">
       <div id="seccionActivacion" style="display: none;">
-          <div class="card" style="border: 2px dashed #ffb300; text-align: center; background: rgba(255,179,0,0.05);">
+          <div class="card" style="border-color: #ffb300; text-align: center;">
             <h3 style="color: #ffb300; margin-top: 0;">Cuenta No Activa</h3>
-            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px;">Ingresá tu PIN de 6 dígitos.</p>
-            <input type="text" id="pinInput" placeholder="_ _ _ _ _ _" maxlength="6" 
-                   style="width: 80%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; text-align: center; font-size: 22px; letter-spacing: 4px; margin-bottom: 10px;">
-            <button onclick="cargarPinActivacion()" style="background:#ffb300; color:#000;">ACTIVAR AHORA</button>
+            <p style="font-size: 12px; color: #ccc;">Ingresá el código de 6 dígitos para comenzar.</p>
+            <input type="text" id="inputToken" placeholder="000000" maxlength="6">
+            <button onclick="validarCodigo()" style="background: #ffb300;">ACTIVAR AHORA</button>
           </div>
       </div>
 
@@ -82,7 +91,7 @@
 
           <div class="status-bar">
             <span class="badge" id="badgeSistema">INACTIVO</span>
-            <span id="txtNombreChofer" style="font-weight: bold;">Chofer</span>
+            <span id="txtNombreChofer">Chofer</span>
           </div>
           
           <div id="controlesViaje" class="card" style="display: none;">
@@ -92,7 +101,7 @@
 
           <div id="controlesEstandar">
               <div class="card" style="text-align:center;">
-                  <h3 id="txtEstado" style="color:#ff5252; margin:0; margin-bottom:10px; font-size: 14px;">ESTADO: BLOQUEADO</h3>
+                  <h3 id="txtEstado" style="color:#ff5252; margin:0; margin-bottom:10px;">ESTADO: BLOQUEADO</h3>
                   <button id="btnToggle" onclick="toggleEstado()" disabled>ESPERANDO ACTIVACIÓN</button>
                   <button class="btn-desconectar" onclick="cerrarSesion()">DESCONECTARME</button>
               </div>
@@ -106,6 +115,7 @@
 let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, marker, directionsService, directionsRenderer, estadoActual = "disponible", pagoConfirmado = false, viajeActualId = null, direccionOrigenViaje = "", direccionDestinoViaje = "", intervaloReloj;
 let datosAuto = { modelo: "", patente: "", color: "" };
+let ultimaRutaDestino = ""; 
 let faseViaje = 1; 
 
 async function initApp() {
@@ -153,6 +163,26 @@ function desactivarModoTrabajo() {
     document.getElementById('txtEstado').innerText = "ESTADO: BLOQUEADO";
     document.getElementById('txtEstado').style.color = "#ff5252";
     if(intervaloReloj) clearInterval(intervaloReloj);
+}
+
+// LOGICA DE ACTIVACIÓN RECUPERADA DEL SEGUNDO CÓDIGO
+async function validarCodigo() {
+    const cod = document.getElementById('inputToken').value.trim();
+    if(cod.length < 6) return alert("Ingresá el código.");
+
+    try {
+        const res = await fetch('/validar-token', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ codigo: cod, telefono: sesion.telefono })
+        });
+        const data = await res.json();
+        if(data.ok) {
+            location.reload();
+        } else {
+            alert(data.mensaje || "Código inválido");
+        }
+    } catch (e) { alert("Error de conexión"); }
 }
 
 function iniciarReloj(vencimiento) {
@@ -229,9 +259,10 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
         document.getElementById("controlesEstandar").style.display = "none";
         document.getElementById("controlesViaje").style.display = "block";
         faseViaje = 1;
-        document.getElementById("destinoActual").innerText = "Buscando a: " + direccionOrigenViaje;
+        document.getElementById("destinoActual").innerText = "BUSCANDO A: " + direccionOrigenViaje;
         document.getElementById("btnAccionViaje").innerText = "YA BUSQUÉ AL PASAJERO";
         document.getElementById("btnAccionViaje").style.background = "#ffb300";
+        document.getElementById("btnAccionViaje").style.color = "#000";
         trazarRuta(direccionOrigenViaje);
         estadoActual = "en viaje";
     } catch (e) { alert("Error al aceptar"); }
@@ -240,7 +271,7 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
 function gestionarFaseViaje() {
     if (faseViaje === 1) {
         faseViaje = 2;
-        document.getElementById("destinoActual").innerText = "Yendo a: " + direccionDestinoViaje;
+        document.getElementById("destinoActual").innerText = "YENDO A: " + direccionDestinoViaje;
         document.getElementById("btnAccionViaje").innerText = "IR AL DESTINO";
         document.getElementById("btnAccionViaje").style.background = "#00c853";
         trazarRuta(direccionDestinoViaje);
@@ -256,6 +287,7 @@ function gestionarFaseViaje() {
 }
 
 function trazarRuta(destino) {
+    ultimaRutaDestino = destino; 
     navigator.geolocation.getCurrentPosition(pos => {
         directionsService.route({
             origin: { lat: pos.coords.latitude, lng: pos.coords.longitude },
@@ -264,8 +296,14 @@ function trazarRuta(destino) {
     });
 }
 
+setInterval(() => {
+    if (viajeActualId && estadoActual === "en viaje" && ultimaRutaDestino) {
+        trazarRuta(ultimaRutaDestino);
+    }
+}, 20000);
+
 function finalizarViaje() {
-    viajeActualId = null; estadoActual = "disponible"; faseViaje = 1;
+    viajeActualId = null; estadoActual = "disponible"; ultimaRutaDestino = ""; faseViaje = 1;
     directionsRenderer.setDirections({routes: []});
     document.getElementById("controlesViaje").style.display = "none";
     document.getElementById("controlesEstandar").style.display = "block";
@@ -277,38 +315,6 @@ async function rechazarViaje() {
     await fetch('/rechazar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId }) });
     document.getElementById("modalViaje").style.display = "none";
     viajeActualId = null;
-}
-
-// ACTIVACIÓN CON CONECTIVIDAD BLINDADA
-async function cargarPinActivacion() {
-    const pinVal = document.getElementById("pinInput").value.trim();
-    if (pinVal.length < 6) return alert("El PIN debe ser de 6 dígitos.");
-    
-    // Respaldo de teléfono si sesion falla
-    const tel = sesion.telefono || localStorage.getItem("telefonoUsuario");
-    if(!tel) return alert("Error: No se encontró tu teléfono en la sesión.");
-
-    try {
-        const res = await fetch('/activar-cuenta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                telefono: tel.toString(), 
-                pin: pinVal.toString() 
-            })
-        });
-        
-        const d = await res.json();
-        
-        if (res.ok) {
-            alert("¡Cuenta activada exitosamente!");
-            location.reload(); 
-        } else {
-            alert(d.mensaje || "PIN incorrecto.");
-        }
-    } catch (e) {
-        alert("Error de conexión. Verificá tu señal e intentá de nuevo.");
-    }
 }
 
 function cerrarSesion() { if(confirm("¿Cerrar?")) { localStorage.clear(); location.href = "/"; } }
