@@ -67,7 +67,7 @@
         </div>
         <button id="btnLlamar" style="width:auto; padding:8px 12px; background:#222; color:#fff; border:1px solid #444;">📞</button>
     </div>
-    <button onclick="location.reload()" style="background:#ff5252; color:#fff; margin-top:10px; font-size:12px;">FINALIZAR</button>
+    <button onclick="location.reload()" style="background:#ff5252; color:#fff; margin-top:10px; font-size:12px;">CANCELAR VIAJE</button>
 </div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&libraries=places"></script>
@@ -81,7 +81,6 @@ async function initApp() {
     
     map = new google.maps.Map(document.getElementById("map"), { center: {lat:-35.638, lng:-59.779}, zoom: 15, disableDefaultUI: true });
     directionsService = new google.maps.DirectionsService();
-    // preserveViewport: true evita que el mapa haga zoom out cada vez que se actualiza la ruta
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true, preserveViewport: true });
 
     const autoO = new google.maps.places.Autocomplete(document.getElementById("origen"), { componentRestrictions:{country:"ar"} });
@@ -152,7 +151,6 @@ function iniciarModoSeguimiento() {
     document.getElementById("txtA").innerText = `${viajeInfo.autoModelo} (${viajeInfo.autoColor}) • ${viajeInfo.autoPatente}`;
     document.getElementById("btnLlamar").onclick = () => window.open(`tel:${viajeInfo.choferTel}`);
 
-    // Seguimiento en tiempo real
     setInterval(async () => {
         try {
             const r = await fetch("/obtener-choferes-activos"); 
@@ -162,7 +160,6 @@ function iniciarModoSeguimiento() {
             if(c) {
                 const p = { lat: Number(c.lat), lng: Number(c.lng) };
                 
-                // Actualizar Marcador del Chofer
                 if(!markerC) {
                     markerC = new google.maps.Marker({ 
                         position: p, 
@@ -173,8 +170,6 @@ function iniciarModoSeguimiento() {
                     markerC.setPosition(p);
                 }
 
-                // RECALCULAR RUTA DINÁMICAMENTE
-                // Esto hace que la línea azul se actualice desde donde ESTÁ el chofer ahora hasta el DESTINO
                 directionsService.route({
                     origin: p, 
                     destination: viajeInfo.destino,
@@ -188,7 +183,7 @@ function iniciarModoSeguimiento() {
                 map.panTo(p);
             }
         } catch(e) { console.log("Error GPS", e); }
-    }, 5000); // Se actualiza cada 5 segundos para fluidez y ahorro de datos
+    }, 5000);
 }
 
 window.onload = initApp;
