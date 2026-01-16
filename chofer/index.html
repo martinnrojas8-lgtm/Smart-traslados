@@ -63,6 +63,7 @@
 <div id="modalViaje">
     <h2 style="margin:0">🚕 ¡NUEVO VIAJE!</h2>
     <p id="datosViaje" style="font-weight:bold; margin: 10px 0;">Cargando...</p>
+    <div id="detallesRuta" style="background: rgba(0,0,0,0.1); padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 15px;"></div>
     <button id="btnAceptarViaje" style="background:#000; color:#00c853;">ACEPTAR VIAJE</button>
     <button onclick="rechazarViaje()" style="background:#ff5252; color:#fff; margin-top:8px;">RECHAZAR</button>
 </div>
@@ -116,6 +117,7 @@ let map, marker, directionsService, directionsRenderer, estadoActual = "disponib
 let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; 
 let faseViaje = 1; 
+let audioInterval;
 
 async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
@@ -123,6 +125,23 @@ async function initApp() {
     initMap();
     setInterval(transmitirUbicacion, 7000);
 }
+
+function sonarAlerta() {
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    audioInterval = setInterval(() => {
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.connect(gain);
+        gain.connect(context.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, context.currentTime);
+        gain.gain.setValueAtTime(0.1, context.currentTime);
+        osc.start();
+        osc.stop(context.currentTime + 0.2);
+    }, 500);
+}
+
+function detenerAlerta() { clearInterval(audioInterval); }
 
 async function cargarDatosChofer() {
     try {
@@ -196,9 +215,7 @@ function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         map = new google.maps.Map(document.getElementById("map"), { 
-            center: myPos, 
-            zoom: 18, // Zoom de navegación ciudadana
-            disableDefaultUI: true,
+            center: myPos, zoom: 18, disableDefaultUI: true,
             styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
         });
         marker = new google.maps.Marker({ 
@@ -216,7 +233,6 @@ function transmitirUbicacion() {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, estado: estadoActual }) });
         if(marker) marker.setPosition(coords);
-        // Seguimiento de cámara con zoom cercano durante el viaje
         if(viajeActualId) {
             map.panTo(coords);
             if(map.getZoom() !== 18) map.setZoom(18);
@@ -242,13 +258,16 @@ setInterval(async () => {
             viajeActualId = v._id; 
             direccionOrigenViaje = v.origen;
             direccionDestinoViaje = v.destino;
-            document.getElementById("datosViaje").innerHTML = `<b>${v.pasajero}</b><br>${v.origen}<br>-> ${v.destino}<br><b>${v.precio}</b>`;
+            document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}`;
+            document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b><br>DISTANCIA: <b>${v.distancia || 'Calculando...'}</b>`;
             document.getElementById("modalViaje").style.display = "block";
+            sonarAlerta();
         }
     } catch (e) {}
 }, 4000);
 
 document.getElementById('btnAceptarViaje').onclick = async function() {
+    detenerAlerta();
     try {
         await fetch('/aceptar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ 
             viajeId: viajeActualId, choferNombre: sesion.nombre, choferTel: sesion.telefono,
@@ -263,7 +282,6 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
         document.getElementById("btnAccionViaje").style.background = "#ffb300";
         trazarRuta(direccionOrigenViaje);
         estadoActual = "en viaje";
-        map.setZoom(18);
     } catch (e) { alert("Error al aceptar"); }
 };
 
@@ -306,14 +324,12 @@ function finalizarViaje() {
     directionsRenderer.setDirections({routes: []});
     document.getElementById("controlesViaje").style.display = "none";
     document.getElementById("controlesEstandar").style.display = "block";
-    navigator.geolocation.getCurrentPosition(pos => { 
-        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); 
-        map.setZoom(18); 
-    });
+    navigator.geolocation.getCurrentPosition(pos => { map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); map.setZoom(18); });
     toggleEstado(); 
 }
 
 async function rechazarViaje() {
+    detenerAlerta();
     await fetch('/rechazar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId }) });
     document.getElementById("modalViaje").style.display = "none";
     viajeActualId = null;
