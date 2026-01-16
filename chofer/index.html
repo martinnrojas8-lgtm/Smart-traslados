@@ -118,6 +118,8 @@ let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; 
 let faseViaje = 1; 
 let audioInterval;
+let infoPrecioFinal = "";
+let infoDistanciaFinal = "";
 
 async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
@@ -258,8 +260,10 @@ setInterval(async () => {
             viajeActualId = v._id; 
             direccionOrigenViaje = v.origen;
             direccionDestinoViaje = v.destino;
+            infoPrecioFinal = v.precio;
+            infoDistanciaFinal = v.distancia || "N/A";
             document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}`;
-            document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b><br>DISTANCIA: <b>${v.distancia || 'Calculando...'}</b>`;
+            document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b><br>DISTANCIA: <b>${infoDistanciaFinal}</b>`;
             document.getElementById("modalViaje").style.display = "block";
             sonarAlerta();
         }
@@ -299,6 +303,8 @@ function gestionarFaseViaje() {
         document.getElementById("btnAccionViaje").style.background = "#ff5252";
         document.getElementById("btnAccionViaje").style.color = "#fff";
     } else if (faseViaje === 3) {
+        // MOSTRAR CARTEL DE COBRO FINAL
+        alert(`VIAJE FINALIZADO\n-------------------\nCOBRAR: ${infoPrecioFinal}\nRECORRIDO: ${infoDistanciaFinal}`);
         finalizarViaje();
     }
 }
