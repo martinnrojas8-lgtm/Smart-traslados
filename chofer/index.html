@@ -234,16 +234,35 @@ function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         map = new google.maps.Map(document.getElementById("map"), { 
-            center: myPos, zoom: 18, disableDefaultUI: true,
-            styles: darkMapStyle
+            center: myPos, 
+            zoom: 17, 
+            disableDefaultUI: true,
+            styles: darkMapStyle,
+            heading: pos.coords.heading || 0,
+            tilt: 0
         });
+        
         marker = new google.maps.Marker({ 
-            position: myPos, map: map, 
-            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } 
+            position: myPos, 
+            map: map, 
+            icon: { 
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, 
+                scale: 8, 
+                fillColor: "#00c853", 
+                fillOpacity: 1, 
+                strokeColor: "#fff", 
+                strokeWeight: 2,
+                rotation: pos.coords.heading || 0
+            },
+            flat: true
         });
+        
         directionsService = new google.maps.DirectionsService();
-        // CORRECCIÓN: preserveViewport evita que el zoom cambie solo al trazar ruta
-        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true });
+        directionsRenderer = new google.maps.DirectionsRenderer({ 
+            map: map, 
+            suppressMarkers: false, 
+            preserveViewport: true 
+        });
     });
 }
 
@@ -251,15 +270,33 @@ function transmitirUbicacion() {
     if(!pagoConfirmado) return; 
     navigator.geolocation.getCurrentPosition(pos => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, estado: estadoActual }) });
+        const heading = pos.coords.heading || 0; 
         
-        if(marker) marker.setPosition(coords);
+        fetch("/actualizar-ubicacion-chofer", { 
+            method: "POST", 
+            headers: {"Content-Type": "application/json"}, 
+            body: JSON.stringify({ 
+                telefono: sesion.telefono, 
+                lat: coords.lat, 
+                lng: coords.lng, 
+                estado: estadoActual 
+            }) 
+        });
+        
+        if(marker) {
+            marker.setPosition(coords);
+            const icon = marker.getIcon();
+            icon.rotation = heading;
+            marker.setIcon(icon);
+        }
         
         if(viajeActualId) {
             map.panTo(coords);
+            // Rotamos el mapa para que el frente del auto sea "arriba"
+            if (heading !== 0) map.setHeading(heading);
             if(map.getZoom() !== 17) map.setZoom(17);
         }
-    });
+    }, null, { enableHighAccuracy: true });
 }
 
 function toggleEstado() {
@@ -336,7 +373,6 @@ function trazarRuta(destino) {
             destination: destino, travelMode: 'DRIVING'
         }, (result, status) => { 
             if (status === 'OK') {
-                // Al trazar, respetamos el zoom que ya tenemos
                 directionsRenderer.setDirections(result); 
             }
         });
@@ -357,6 +393,7 @@ function finalizarViaje() {
     navigator.geolocation.getCurrentPosition(pos => { 
         map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); 
         map.setZoom(18); 
+        map.setHeading(0); // Resetear rotación al terminar
     });
     toggleEstado(); 
 }
