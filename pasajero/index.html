@@ -126,7 +126,20 @@ function calcularRuta() {
     });
 }
 
-function pedirViaje() {
+async function pedirViaje() {
+    // --- NUEVO BLOQUE DE SEGURIDAD ---
+    try {
+        const resU = await fetch('/obtener-usuarios');
+        const usuarios = await resU.json();
+        const yo = usuarios.find(u => u.telefono === sesion.telefono);
+
+        if (yo && yo.bloqueado === true) {
+            alert("AVISO: Su cuenta se encuentra inhabilitada. Por favor, comuníquese con nuestros operadores.");
+            return;
+        }
+    } catch (e) { console.error("Error validando usuario"); }
+    // --- FIN BLOQUE DE SEGURIDAD ---
+
     const pedido = { 
         pasajeroTel: sesion.telefono, 
         pasajeroNombre: sesion.nombre, 
@@ -151,7 +164,7 @@ function pedirViaje() {
                 alert("No hay choferes disponibles en este momento. Inténtalo más tarde.");
                 location.reload(); 
             }
-        }, 300000); // 5 minutos exactos
+        }, 300000); 
 
         const mon = setInterval(async () => {
             const resV = await fetch('/obtener-viajes'); 
