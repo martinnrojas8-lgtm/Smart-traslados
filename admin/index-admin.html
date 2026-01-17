@@ -218,7 +218,10 @@ function actualizarTablaPasajeros(pasas) {
         const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
         const colorLock = estaBloqueado ? '#f44336' : '#ff9800';
         
-        tP.innerHTML += `<tr id="fila-${p.telefono}"><td><b>${p.nombre || 'S/N'}</b></td><td>${p.telefono}</td><td><button id="btnLock-${p.telefono}" class="btn-accion" style="background:${colorLock};" onclick="bloquearPasajero('${p.telefono}', ${estaBloqueado})">🔒</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">${iconTrash}</button></td></tr>`; 
+        // CORRECCIÓN: Si no encuentra 'nombre', prueba con 'usuario' o pone el teléfono para que no quede vacío.
+        const nombreVisible = p.nombre || p.usuario || p.user || "Pasajero: " + p.telefono;
+
+        tP.innerHTML += `<tr id="fila-${p.telefono}"><td><b style="color: #4caf50;">${nombreVisible}</b></td><td>${p.telefono}</td><td><button id="btnLock-${p.telefono}" class="btn-accion" style="background:${colorLock};" onclick="bloquearPasajero('${p.telefono}', ${estaBloqueado})">🔒</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">${iconTrash}</button></td></tr>`; 
     });
 }
 
@@ -264,7 +267,6 @@ async function actualizarEstadisticasFecha() {
         const res = await fetch('/obtener-viajes');
         const viajes = await res.json();
 
-        // Convertir fecha de input (YYYY-MM-DD) a formato de base de datos (D/M/YYYY)
         const partes = fechaSel.split('-');
         const fechaFormatoDB = `${parseInt(partes[1])}/${parseInt(partes[2])}/${partes[0]}`; 
         
@@ -274,11 +276,9 @@ async function actualizarEstadisticasFecha() {
         for(let i=0; i<24; i++) horasMap[i.toString().padStart(2, '0') + ":00"] = 0;
 
         viajes.forEach(v => {
-            // Comparamos la fecha del viaje con la seleccionada
             if(v.fecha === fechaFormatoDB) {
                 if(v.hora) {
                     let hStr = v.hora.split(":")[0];
-                    // Manejo de formatos 12hs si existen (AM/PM)
                     if(v.hora.includes("PM") && hStr !== "12") hStr = parseInt(hStr) + 12;
                     if(v.hora.includes("AM") && hStr === "12") hStr = "00";
                     
