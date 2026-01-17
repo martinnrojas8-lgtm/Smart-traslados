@@ -229,13 +229,17 @@ app.post('/login', async (req, res) => {
 
 app.post('/register', async (req, res) => {
     try {
-        const { telefono, rol } = req.body;
+        const { telefono, rol, nombre } = req.body; // SE AGREGÓ NOMBRE AQUÍ
         const existe = await Usuario.findOne({ telefono });
         if(existe) {
             if (existe.bloqueado) return res.status(403).json({ mensaje: "Número bloqueado" });
             return res.json({ mensaje: "Ok", usuario: existe });
         }
-        const nuevo = new Usuario({ telefono, rol: rol.toLowerCase() });
+        const nuevo = new Usuario({ 
+            telefono, 
+            rol: rol.toLowerCase(),
+            nombre: nombre || "" // SE AGREGÓ NOMBRE AQUÍ
+        });
         await nuevo.save();
         res.json({ mensaje: "Ok", usuario: nuevo });
     } catch (e) { res.status(500).json({ error: "Error" }); }
