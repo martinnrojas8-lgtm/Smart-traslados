@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Traslados – Panel Propietario</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/martinnrojas8-lgtm/smart-traslados/main/Public/IMG_20260103_204207.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/martinnrojas8-lgtm/smart-traslados/main/Public/IMG_20260103_204207.png">
 
@@ -32,6 +34,8 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 .ficha-codigo { font-size: 42px; font-weight: bold; color: #4caf50; letter-spacing: 5px; margin: 5px 0; }
 .btn-compartir { background: none; border: none; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
 .btn-compartir:active { transform: scale(0.9); }
+/* Estilo para que la captura ignore el botón de compartir */
+.ignore-capture { visibility: hidden !important; }
 </style>
 </head>
 <body>
@@ -89,12 +93,12 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
         <button class="btn-ok" onclick="generarNuevoCodigo()">GENERAR NUEVO CÓDIGO</button>
         
         <div id="contenedorFicha" style="position: relative; display: none; flex-direction: column; align-items: center; background: #fff; padding: 25px; border-radius: 15px; max-width: 300px; margin: 25px auto; color: #000; text-align: center; border: 3px solid #4caf50; box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
-            <div style="position: absolute; top: 10px; right: 10px;">
+            <div id="botonShareContainer" style="position: absolute; top: 10px; right: 10px;">
                 <button class="btn-compartir" onclick="compartirCodigo()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                 </button>
             </div>
-            <img src="https://raw.githubusercontent.com/martinnrojas8-lgtm/smart-traslados/main/Public/IMG_20260103_204207.png" style="height: 50px; margin-bottom: 10px;">
+            <img src="https://raw.githubusercontent.com/martinnrojas8-lgtm/smart-traslados/main/Public/IMG_20260103_204207.png" style="height: 50px; margin-bottom: 10px;" crossorigin="anonymous">
             <div style="font-size: 20px; font-weight: bold; color: #111; margin-bottom: 5px;">SMART TRASLADOS</div>
             <div style="font-size: 12px; color: #666; font-weight: bold; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #ddd; width: 100%; padding-bottom: 10px;">VOUCHER DE ACTIVACIÓN</div>
             <div style="font-size: 11px; color: #333; margin-bottom: 5px;">CÓDIGO DE ACCESO:</div>
@@ -334,13 +338,38 @@ async function generarNuevoCodigo() {
 }
 
 async function compartirCodigo() {
+    const elemento = document.getElementById('contenedorFicha');
+    const btnShare = document.getElementById('botonShareContainer');
     const codigo = document.getElementById('txtFichaCodigo').innerText;
-    const texto = `🚗 *SMART TRASLADOS*\n\nHola! Tu código de acceso es: *${codigo}*\n\nVálido por 24 horas.`;
-    if (navigator.share) {
-        try { await navigator.share({ title: 'Código Smart Traslados', text: texto }); } catch (e) {}
-    } else {
-        window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
-    }
+
+    // Ocultamos el botón de compartir de la foto para que no salga en la imagen
+    btnShare.classList.add('ignore-capture');
+
+    html2canvas(elemento, { 
+        backgroundColor: null,
+        useCORS: true, // Importante para cargar el logo externo
+        scale: 2 // Mejora la calidad de la imagen
+    }).then(async canvas => {
+        btnShare.classList.remove('ignore-capture');
+        
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], `voucher-${codigo}.png`, { type: 'image/png' });
+
+        // Si el navegador soporta compartir archivos (móviles modernos)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Voucher Smart Traslados',
+                    text: `🚗 *SMART TRASLADOS*\nCódigo: *${codigo}*`
+                });
+            } catch (e) { console.error(e); }
+        } else {
+            // Si no soporta compartir imagen, cae al texto tradicional pero avisamos
+            const texto = `🚗 *SMART TRASLADOS*\n\nHola! Tu código de acceso es: *${codigo}*\n\nVálido por 24 horas.`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+        }
+    });
 }
 
 window.onload = () => {
