@@ -38,6 +38,10 @@
   
   #modalViaje { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 400px; background: #00c853; color: #000; padding: 20px; border-radius: 15px; z-index: 2000; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
 
+  /* ESTILO PARA EL MODAL DE NOVEDADES */
+  #modalNovedad { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; }
+  .novedad-box { background: #111; border: 2px solid #00c853; padding: 25px; border-radius: 15px; width: 80%; max-width: 400px; text-align: center; }
+
   #inputToken { width: 80%; padding: 12px; border-radius: 8px; border: none; margin-bottom: 10px; text-align: center; font-size: 18px; letter-spacing: 3px; background: #333; color: #fff; }
 
   @media screen and (orientation: landscape) {
@@ -59,6 +63,14 @@
   </div>
   <h2 style="margin:0; font-size:16px; color: #00c853;">Smart Chofer</h2>
 </header>
+
+<div id="modalNovedad">
+    <div class="novedad-box">
+        <h3 style="color: #00c853; margin-top: 0;">📢 COMUNICADO</h3>
+        <p id="txtNovedad" style="font-size: 16px; line-height: 1.4; margin: 20px 0;"></p>
+        <button onclick="document.getElementById('modalNovedad').style.display='none'" style="background: #00c853; color: #000;">ENTENDIDO</button>
+    </div>
+</div>
 
 <div id="modalViaje">
     <h2 style="margin:0">🚕 ¡NUEVO VIAJE!</h2>
@@ -121,6 +133,7 @@ let audioInterval;
 let infoPrecioFinal = "";
 let infoDistanciaFinal = "";
 let wakeLock = null;
+let ultimoMsgID = null; // Para no repetir el mismo mensaje
 
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
@@ -138,7 +151,21 @@ async function initApp() {
     await cargarDatosChofer();
     initMap();
     setInterval(transmitirUbicacion, 7000);
+    setInterval(chequearMensajesAdmin, 15000); // REVISAR CADA 15 SEG
     solicitarWakeLock();
+}
+
+// FUNCIÓN PARA ESCUCHAR AL ADMIN
+async function chequearMensajesAdmin() {
+    try {
+        const res = await fetch('/obtener-ultimo-mensaje/choferes');
+        const data = await res.json();
+        if (data && data.texto && data._id !== ultimoMsgID) {
+            ultimoMsgID = data._id;
+            document.getElementById('txtNovedad').innerText = data.texto;
+            document.getElementById('modalNovedad').style.display = 'flex';
+        }
+    } catch (e) { console.error("Error al recibir mensajes"); }
 }
 
 async function solicitarWakeLock() {
@@ -207,7 +234,6 @@ async function validarCodigo() {
     if(cod.length < 6) return alert("Ingresá el código.");
     
     try {
-        // Primero verificamos si el chofer está aprobado en la base de datos
         const resU = await fetch('/obtener-usuarios');
         const usuarios = await resU.json();
         const yo = usuarios.find(u => u.telefono === sesion.telefono);
@@ -217,7 +243,6 @@ async function validarCodigo() {
             return;
         }
 
-        // Si está aprobado, procedemos a validar el token
         const res = await fetch('/validar-token', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -304,7 +329,6 @@ function transmitirUbicacion() {
         
         if(viajeActualId) {
             map.panTo(coords);
-            // Rotamos el mapa para que el frente del auto sea "arriba"
             if (heading !== 0) map.setHeading(heading);
             if(map.getZoom() !== 17) map.setZoom(17);
         }
@@ -405,7 +429,7 @@ function finalizarViaje() {
     navigator.geolocation.getCurrentPosition(pos => { 
         map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); 
         map.setZoom(18); 
-        map.setHeading(0); // Resetear rotación al terminar
+        map.setHeading(0); 
     });
     toggleEstado(); 
 }
