@@ -4,7 +4,7 @@
   "description": "Tu servicio de traslados inteligentes",
   "start_url": "login.html",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#00c853",
   "icons": [
