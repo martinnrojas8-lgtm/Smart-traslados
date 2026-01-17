@@ -363,19 +363,26 @@ function transmitirUbicacion() {
     navigator.geolocation.getCurrentPosition(pos => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         const heading = pos.coords.heading || 0; 
+        
+        // Enviamos el rumbo al servidor para que el pasajero vea la flecha rotar
         fetch("/actualizar-ubicacion-chofer", { 
             method: "POST", 
             headers: {"Content-Type": "application/json"}, 
-            body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, estado: estadoActual }) 
+            body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, heading: heading, estado: estadoActual }) 
         });
+        
         if(marker) {
             marker.setPosition(coords);
             const icon = marker.getIcon(); icon.rotation = heading; marker.setIcon(icon);
         }
+
+        // ROTACIÓN DE MAPA 2D PARA EL CHOFER
         if(viajeActualId) {
-            map.panTo(coords);
-            if (heading !== 0) map.setHeading(heading);
-            if(map.getZoom() !== 17) map.setZoom(17);
+            map.setOptions({
+                center: coords,
+                heading: heading,
+                zoom: 17
+            });
         }
     }, null, { enableHighAccuracy: true });
 }
@@ -458,20 +465,20 @@ function trazarRuta(destino) {
 
 async function finalizarViaje() {
     try {
-        await fetch('/finalizar-viaje-real', { 
+        // Cambiamos a la ruta /finalizar-viaje que es la que activa la escucha del pasajero
+        await fetch('/finalizar-viaje', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ viajeId: viajeActualId }) 
+            body: JSON.stringify({ id: viajeActualId }) 
         });
-        viajeActualId = null; estadoActual = "disponible"; ultimaRutaDestino = ""; faseViaje = 1;
-        directionsRenderer.setDirections({routes: []});
-        document.getElementById("controlesViaje").style.display = "none";
-        document.getElementById("controlesEstandar").style.display = "block";
-        navigator.geolocation.getCurrentPosition(pos => { 
-            map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); 
-            map.setZoom(18); map.setHeading(0); 
-        });
-        toggleEstado(); 
+        
+        viajeActualId = null; 
+        estadoActual = "disponible"; 
+        ultimaRutaDestino = ""; 
+        faseViaje = 1;
+        
+        // Recargamos para limpiar todo y volver al estado inicial
+        location.reload(); 
     } catch (e) { alert("Error al conectar con el servidor."); }
 }
 
