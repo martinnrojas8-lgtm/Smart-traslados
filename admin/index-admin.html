@@ -74,10 +74,10 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 <div id="estadisticas" class="pantalla">
     <div class="card">
         <h3>Movimiento por Horario (Hoy)</h3>
-        <p style="font-size: 12px; color: #aaa;">Muestra la cantidad de viajes solicitados agrupados por hora.</p>
+        <p style="font-size: 12px; color: #aaa;">Viajes solicitados agrupados por hora de inicio.</p>
         <div style="overflow-x:auto;">
             <table id="tablaEstadisticas">
-                <tr><th>Franja Horaria</th><th>Viajes Totales</th></tr>
+                <tr><th>Franja Horaria</th><th>Viajes</th></tr>
             </table>
         </div>
     </div>
@@ -206,16 +206,14 @@ async function generarEstadisticas() {
         const res = await fetch('/obtener-viajes');
         const viajes = await res.json();
         let tE = document.getElementById('tablaEstadisticas');
-        tE.innerHTML = `<tr><th>Franja Horaria</th><th>Viajes Totales</th></tr>`;
+        tE.innerHTML = `<tr><th>Franja Horaria</th><th>Viajes</th></tr>`;
         
-        // Creamos un objeto con las 24 horas del día
         let horasMap = {};
         for(let i=0; i<24; i++) {
             let h = i.toString().padStart(2, '0') + ":00";
             horasMap[h] = 0;
         }
 
-        // Agrupamos viajes por hora (tomando los primeros 2 dígitos del string v.hora)
         viajes.forEach(v => {
             if(v.hora) {
                 let hStr = v.hora.split(":")[0] + ":00";
@@ -223,7 +221,6 @@ async function generarEstadisticas() {
             }
         });
 
-        // Volcamos a la tabla
         Object.keys(horasMap).forEach(h => {
             let cantidad = horasMap[h];
             let colorFila = cantidad > 0 ? "color: #4caf50; font-weight: bold;" : "color: #555;";
