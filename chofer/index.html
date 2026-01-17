@@ -166,7 +166,7 @@ async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
     await cargarDatosChofer();
     initMap();
-    setInterval(transmitirUbicacion, 7000);
+    setInterval(transmitirUbicacion, 3000); // INTERVALO REDUCIDO PARA MÁS PRECISIÓN
     setInterval(chequearMensajesAdmin, 15000); 
     chequearMensajesAdmin();
     solicitarWakeLock();
@@ -186,24 +186,20 @@ async function mostrarInfoPago(e) {
             fetch('/obtener-tarifas'),
             fetch('/obtener-config-admin')
         ]);
-
         if (resT.status === 'fulfilled' && resT.value.ok) {
             const dataT = await resT.value.json();
             if (dataT.montoFijoInfo) monto = dataT.montoFijoInfo;
         }
-        
         if (resC.status === 'fulfilled' && resC.value.ok) {
             const dataC = await resC.value.json();
             if (dataC.alias) alias = dataC.alias;
             if (dataC.tel) telAdmin = dataC.tel;
         }
-    } catch (err) { console.warn("Usando datos de respaldo."); }
-
+    } catch (err) {}
     document.getElementById('montoPin').innerText = "$" + monto;
     document.getElementById('aliasPin').innerText = alias;
     const mensajeWsp = encodeURIComponent("Hola! Envío el comprobante para activar mi PIN de Smart Traslados.");
     document.getElementById('linkWspPin').href = `https://wa.me/${telAdmin}?text=${mensajeWsp}`;
-    
     div.style.display = 'block';
 }
 
@@ -211,20 +207,15 @@ async function chequearMensajesAdmin() {
     try {
         const res = await fetch('/obtener-ultimo-mensaje/choferes');
         const data = await res.json();
-        if (!data || !data.texto || data.texto.trim() === "") {
-            document.getElementById('modalNovedad').style.display = 'none';
-            return;
-        }
+        if (!data || !data.texto || data.texto.trim() === "") return;
         const firmaTexto = btoa(data.texto.trim()).substring(0, 24);
         const yaVisto = localStorage.getItem('visto_msg_' + firmaTexto);
         if (!yaVisto) {
             ultimoMsgID = firmaTexto;
             document.getElementById('txtNovedad').innerText = data.texto;
             document.getElementById('modalNovedad').style.display = 'flex';
-        } else {
-            document.getElementById('modalNovedad').style.display = 'none';
         }
-    } catch (e) { console.error("Error al recibir mensajes"); }
+    } catch (e) {}
 }
 
 function marcarMensajeComoLeido() {
@@ -267,7 +258,7 @@ async function cargarDatosChofer() {
             if (yo.foto) { document.getElementById('imgMiniaturaHeader').src = yo.foto; document.getElementById('imgMiniaturaHeader').style.display = 'block'; document.getElementById('iconoDefault').style.display = 'none'; }
         }
         if (data.pagoActivo) activarModoTrabajo(data.vencimiento); else desactivarModoTrabajo();
-    } catch (e) { console.log(e); }
+    } catch (e) {}
 }
 
 function activarModoTrabajo(vencimiento) {
@@ -297,13 +288,6 @@ async function validarCodigo() {
     const cod = document.getElementById('inputToken').value.trim();
     if(cod.length < 6) return alert("Ingresá el código.");
     try {
-        const resU = await fetch('/obtener-usuarios');
-        const usuarios = await resU.json();
-        const yo = usuarios.find(u => u.telefono === sesion.telefono);
-        if (yo && yo.aprobado === false) {
-            alert("ACCESO DENEGADO: Tu cuenta está bloqueada por documentación pendiente.");
-            return;
-        }
         const res = await fetch('/validar-token', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -336,8 +320,7 @@ function initMap() {
             zoom: 17, 
             disableDefaultUI: true,
             styles: darkMapStyle,
-            heading: pos.coords.heading || 0,
-            tilt: 0
+            heading: pos.coords.heading || 0
         });
         marker = new google.maps.Marker({ 
             position: myPos, 
@@ -350,12 +333,11 @@ function initMap() {
                 strokeColor: "#fff", 
                 strokeWeight: 2,
                 rotation: pos.coords.heading || 0
-            },
-            flat: true
+            }
         });
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true });
-    });
+    }, null, { enableHighAccuracy: true });
 }
 
 function transmitirUbicacion() {
@@ -376,11 +358,10 @@ function transmitirUbicacion() {
         }
 
         if(viajeActualId) {
-            map.setOptions({
-                center: coords,
-                heading: heading,
-                zoom: 17
-            });
+            map.panTo(coords);
+            if(heading) map.setHeading(heading);
+            // RECALCULO DE RUTA SI HAY CAMBIO
+            trazarRuta(ultimaRutaDestino);
         }
     }, null, { enableHighAccuracy: true });
 }
@@ -451,13 +432,14 @@ function gestionarFaseViaje() {
 }
 
 function trazarRuta(destino) {
+    if(!destino) return;
     ultimaRutaDestino = destino; 
     navigator.geolocation.getCurrentPosition(pos => {
         directionsService.route({
             origin: { lat: pos.coords.latitude, lng: pos.coords.longitude },
             destination: destino, travelMode: 'DRIVING'
         }, (result, status) => { if (status === 'OK') directionsRenderer.setDirections(result); });
-    });
+    }, null, { enableHighAccuracy: true });
 }
 
 async function finalizarViaje() {
@@ -467,14 +449,11 @@ async function finalizarViaje() {
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ id: viajeActualId }) 
         });
-        
         if(respuesta.ok) {
             alert(`VIAJE FINALIZADO\n-------------------\nCOBRAR: ${infoPrecioFinal}\nRECORRIDO: ${infoDistanciaFinal}`);
             location.reload(); 
-        } else {
-            alert("Error al finalizar viaje en el servidor.");
         }
-    } catch (e) { alert("Error de conexión"); }
+    } catch (e) {}
 }
 
 async function rechazarViaje() {
