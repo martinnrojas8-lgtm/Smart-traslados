@@ -41,7 +41,7 @@
     <div class="novedad-box">
         <h3 style="color: #00c853; margin-top: 0;">📢 COMUNICADO</h3>
         <p id="txtNovedad" style="font-size: 16px; line-height: 1.4; margin: 20px 0;"></p>
-        <button onclick="document.getElementById('modalNovedad').style.display='none'" style="background: #00c853; color: #000;">ENTENDIDO</button>
+        <button onclick="marcarMensajeComoLeido()" style="background: #00c853; color: #000;">ENTENDIDO</button>
     </div>
 </div>
 
@@ -124,21 +124,42 @@ async function initApp() {
         });
     });
 
-    // Iniciar escucha de mensajes del administrador
+    // Iniciar escucha de mensajes
     setInterval(chequearMensajesAdmin, 15000);
+    chequearMensajesAdmin(); 
 }
 
-// FUNCIÓN PARA RECIBIR MENSAJES DEL ADMIN
+// LÓGICA DE MENSAJES REFORZADA (IGUAL QUE EN CHOFER)
 async function chequearMensajesAdmin() {
     try {
         const res = await fetch('/obtener-ultimo-mensaje/pasajeros');
         const data = await res.json();
-        if (data && data.texto && data._id !== ultimoMsgID) {
-            ultimoMsgID = data._id;
+        
+        // Si el mensaje está vacío o son solo espacios, no hacer nada
+        if (!data || !data.texto || data.texto.trim() === "") {
+            document.getElementById('modalNovedad').style.display = 'none';
+            return;
+        }
+
+        // Crear firma única basada en el contenido
+        const firmaTexto = btoa(data.texto.trim()).substring(0, 24);
+        const yaVisto = localStorage.getItem('visto_msg_pasajero_' + firmaTexto);
+
+        if (!yaVisto) {
+            ultimoMsgID = firmaTexto;
             document.getElementById('txtNovedad').innerText = data.texto;
             document.getElementById('modalNovedad').style.display = 'flex';
+        } else {
+            document.getElementById('modalNovedad').style.display = 'none';
         }
     } catch (e) { console.error("Error al recibir comunicados"); }
+}
+
+function marcarMensajeComoLeido() {
+    if (ultimoMsgID) {
+        localStorage.setItem('visto_msg_pasajero_' + ultimoMsgID, 'true');
+    }
+    document.getElementById('modalNovedad').style.display = 'none';
 }
 
 function calcularRuta() {
