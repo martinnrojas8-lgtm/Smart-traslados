@@ -68,7 +68,7 @@
     <div class="novedad-box">
         <h3 style="color: #00c853; margin-top: 0;">📢 COMUNICADO</h3>
         <p id="txtNovedad" style="font-size: 16px; line-height: 1.4; margin: 20px 0;"></p>
-        <button onclick="document.getElementById('modalNovedad').style.display='none'" style="background: #00c853; color: #000;">ENTENDIDO</button>
+        <button onclick="marcarMensajeComoLeido()" style="background: #00c853; color: #000;">ENTENDIDO</button>
     </div>
 </div>
 
@@ -155,17 +155,29 @@ async function initApp() {
     solicitarWakeLock();
 }
 
-// FUNCIÓN PARA ESCUCHAR AL ADMIN
+// FUNCIÓN PARA ESCUCHAR AL ADMIN (CON MEMORIA DE LECTURA)
 async function chequearMensajesAdmin() {
     try {
         const res = await fetch('/obtener-ultimo-mensaje/choferes');
         const data = await res.json();
-        if (data && data.texto && data._id !== ultimoMsgID) {
+        
+        // Obtenemos el ID del último mensaje que el chofer ya marcó como "Entendido"
+        const mensajeLeidoID = localStorage.getItem('ultimoMensajeLeidoID');
+
+        if (data && data.texto && data._id !== ultimoMsgID && data._id !== mensajeLeidoID) {
             ultimoMsgID = data._id;
             document.getElementById('txtNovedad').innerText = data.texto;
             document.getElementById('modalNovedad').style.display = 'flex';
         }
     } catch (e) { console.error("Error al recibir mensajes"); }
+}
+
+function marcarMensajeComoLeido() {
+    if (ultimoMsgID) {
+        // Guardamos el ID del mensaje actual como "leído" en el teléfono
+        localStorage.setItem('ultimoMensajeLeidoID', ultimoMsgID);
+    }
+    document.getElementById('modalNovedad').style.display = 'none';
 }
 
 async function solicitarWakeLock() {
