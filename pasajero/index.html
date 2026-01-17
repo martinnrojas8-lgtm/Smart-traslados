@@ -229,16 +229,20 @@ function iniciarModoSeguimiento() {
     document.getElementById("seguimientoPrecio").innerText = viajeInfo.precio;
     document.getElementById("seguimientoDistancia").innerText = document.getElementById("infoDistancia").innerText.replace("Distancia: ","");
 
+    // REFUERZO: Aumentamos la frecuencia de chequeo y usamos una comparación más directa
     const rastreo = setInterval(async () => {
         try {
             const resV = await fetch('/obtener-viajes');
             const viajes = await resV.json();
+            
+            // Buscamos nuestro viaje por ID
             const miV = viajes.find(v => v._id === idViaje);
 
-            if (miV && miV.estado === "finalizado") {
+            // Si el viaje ya no existe en la lista de activos o su estado es "finalizado"
+            if (!miV || miV.estado === "finalizado") {
                 clearInterval(rastreo);
-                alert("VIAJE FINALIZADO. ¡Gracias por viajar con Smart Traslados!");
-                location.reload();
+                alert("VIAJE FINALIZADO. ¡Gracias por confiar en Smart Traslados!");
+                window.location.href = "pasajero.html"; // Forzamos redirección limpia
                 return;
             }
 
@@ -257,7 +261,7 @@ function iniciarModoSeguimiento() {
                 map.panTo(p);
             }
         } catch(e) { console.log("Error Seguimiento", e); }
-    }, 5000);
+    }, 4000); // Chequeo cada 4 segundos
 }
 
 window.onload = initApp;
