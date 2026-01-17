@@ -91,6 +91,7 @@
             <div style="font-size: 10px; color: #aaa;">RECORRIDO</div>
         </div>
     </div>
+    <button onclick="location.reload()" style="background:#ff5252; color:#fff; margin-top:10px; font-size:12px;">CANCELAR VIAJE</button>
 </div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&libraries=places"></script>
@@ -234,7 +235,6 @@ function iniciarModoSeguimiento() {
             const viajes = await resV.json();
             const miV = viajes.find(v => v._id === idViaje);
 
-            // SI EL VIAJE SE MARCÓ COMO FINALIZADO
             if (miV && miV.estado === "finalizado") {
                 clearInterval(rastreo);
                 alert("VIAJE FINALIZADO. ¡Gracias por viajar con Smart Traslados!");
