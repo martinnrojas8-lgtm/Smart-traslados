@@ -205,7 +205,19 @@ function desactivarModoTrabajo() {
 async function validarCodigo() {
     const cod = document.getElementById('inputToken').value.trim();
     if(cod.length < 6) return alert("Ingresá el código.");
+    
     try {
+        // Primero verificamos si el chofer está aprobado en la base de datos
+        const resU = await fetch('/obtener-usuarios');
+        const usuarios = await resU.json();
+        const yo = usuarios.find(u => u.telefono === sesion.telefono);
+        
+        if (yo && yo.aprobado === false) {
+            alert("ACCESO DENEGADO: Tu cuenta está bloqueada por documentación pendiente. Por favor, contacta al soporte para regularizar tu situación.");
+            return;
+        }
+
+        // Si está aprobado, procedemos a validar el token
         const res = await fetch('/validar-token', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
