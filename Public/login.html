@@ -74,7 +74,6 @@
     accent-color: #2ecc71;
   }
 
-  /* ESTILO PARA EL ASISTENTE DE IPHONE */
   #guiaIOS {
     position: fixed;
     bottom: 20px;
@@ -141,11 +140,7 @@
 <div id="modalTerms" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:3000; color:#fff; padding:25px; overflow:auto;">
   <h2 style="color:#2ecc71; margin-top:0;">Términos y Condiciones</h2>
   <div style="font-size:13px; line-height:1.6; color:#ccc; text-align:left;">
-    <p><strong>1. NATURALEZA DEL SERVICIO:</strong> Smart Traslados es una plataforma tecnológica que facilita el contacto entre conductores independientes y pasajeros. Smart Traslados <strong>NO ES UNA EMPRESA DE TRANSPORTE</strong>, ni de logística ni de delivery.</p>
-    <p><strong>2. MODELO DE NEGOCIO:</strong> A diferencia de otras plataformas, Smart Traslados no percibe comisiones sobre los viajes. El Chofer abona una cuota fija por el uso del software. El Chofer es dueño del 100% de lo recaudado y Smart Traslados no interviene en el cobro al pasajero.</p>
-    <p><strong>3. RESPONSABILIDAD:</strong> El Chofer declara contar con licencia profesional, VTV y <strong>Seguro de Responsabilidad Civil hacia Terceros y Personas Transportadas</strong> vigente. Smart Traslados queda exenta de toda responsabilidad por siniestros, daños, accidentes o conflictos entre las partes.</p>
-    <p><strong>4. INDEPENDENCIA:</strong> No existe relación de dependencia ni vínculo laboral. El Chofer es un usuario independiente que decide libremente sus horarios y servicios.</p>
-    <p><strong>5. PRIVACIDAD:</strong> Se utilizarán datos de geolocalización para el correcto funcionamiento del servicio y seguridad de los usuarios durante el traslado.</p>
+    <p><strong>1. NATURALEZA DEL SERVICIO:</strong> Smart Traslados es una plataforma tecnológica que facilita el contacto entre conductores independientes y pasajeros.</p>
   </div>
   <button class="btn btn-verde" onclick="cerrarTerms()" style="margin-top:20px;">ENTENDIDO Y CERRAR</button>
 </div>
@@ -153,16 +148,12 @@
 <script>
 let deferredPrompt;
 const btnInstalar = document.getElementById('btnInstalar');
-
-// Lógica de detección iPhone / iOS mejorada
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
 window.onload = () => {
     verificarSesion();
     toggleNombre();
-
-    // Si es iPhone y NO está instalada, mostramos el cartel guía
     if (isIOS && !isStandalone) {
         document.getElementById('guiaIOS').style.display = 'block';
     }
@@ -177,8 +168,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
 btnInstalar.addEventListener('click', async () => {
     if (deferredPrompt) {
         deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') btnInstalar.style.display = 'none';
         deferredPrompt = null;
     }
 });
@@ -196,6 +185,7 @@ function verificarSesion() {
 
 function toggleNombre() {
     const rol = document.getElementById("rol").value;
+    // Si es pasajero, mostramos el campo para que lo llene obligatoriamente
     document.getElementById("campoNombre").style.display = (rol === "pasajero") ? "block" : "none";
 }
 
@@ -203,7 +193,7 @@ function mostrarTerms() { document.getElementById("modalTerms").style.display = 
 function cerrarTerms() { document.getElementById("modalTerms").style.display = "none"; }
 function validarTerms() {
     if (!document.getElementById("chkTerms").checked) {
-        alert("Debés aceptar los Términos y Condiciones para continuar.");
+        alert("Debés aceptar los Términos y Condiciones.");
         return false;
     }
     return true;
@@ -213,15 +203,28 @@ async function enviarRegistro() {
     if (!validarTerms()) return;
     const tel = document.getElementById("telefono").value.trim();
     const rolElegido = document.getElementById("rol").value;
-    const nombrePasajero = document.getElementById("campoNombre").value.trim();
+    const nombreIngresado = document.getElementById("campoNombre").value.trim();
+    
     if (tel.length < 8) return alert("Ingresá un teléfono válido.");
-    if (rolElegido === "pasajero" && !nombrePasajero) return alert("Por favor, ingresá tu nombre.");
+    
+    // Si el usuario es PASAJERO, el nombre NO puede estar vacío
+    if (rolElegido === "pasajero" && !nombreIngresado) {
+        return alert("Por favor, ingresá tu nombre para registrarte.");
+    }
+
     try {
+        const payload = { 
+            telefono: tel, 
+            rol: rolElegido, 
+            nombre: (rolElegido === "pasajero") ? nombreIngresado : "" 
+        };
+
         const res = await fetch('/register', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ telefono: tel, rol: rolElegido, nombre: (rolElegido === "pasajero") ? nombrePasajero : "" })
+            body: JSON.stringify(payload)
         });
+        
         const data = await res.json();
         if (data.mensaje === "Ok") {
             localStorage.setItem("sesion", JSON.stringify({ telefono: tel, tipo: rolElegido }));
