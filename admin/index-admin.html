@@ -34,7 +34,6 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 .ficha-codigo { font-size: 42px; font-weight: bold; color: #4caf50; letter-spacing: 5px; margin: 5px 0; }
 .btn-compartir { background: none; border: none; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
 .btn-compartir:active { transform: scale(0.9); }
-/* Estilo para que la captura ignore el botón de compartir */
 .ignore-capture { visibility: hidden !important; }
 </style>
 </head>
@@ -51,7 +50,7 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
     <button onclick="mostrar('pasajeros')">Pasajeros</button>
     <button onclick="mostrar('viajes')">Viajes</button>
     <button onclick="mostrar('estadisticas')">Estadísticas</button>
-    <button onclick="mostrar('pagos')">Historial Cobros</button>
+    <button onclick="mostrar('pagos')">Generar PIN</button>
     <button onclick="mostrar('tarifas')">Tarifas</button>
     <button onclick="mostrar('mensajes')">Mensajes</button>
     <button onclick="mostrar('config')">Configuración</button>
@@ -342,20 +341,18 @@ async function compartirCodigo() {
     const btnShare = document.getElementById('botonShareContainer');
     const codigo = document.getElementById('txtFichaCodigo').innerText;
 
-    // Ocultamos el botón de compartir de la foto para que no salga en la imagen
     btnShare.classList.add('ignore-capture');
 
     html2canvas(elemento, { 
         backgroundColor: null,
-        useCORS: true, // Importante para cargar el logo externo
-        scale: 2 // Mejora la calidad de la imagen
+        useCORS: true, 
+        scale: 2 
     }).then(async canvas => {
         btnShare.classList.remove('ignore-capture');
         
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], `voucher-${codigo}.png`, { type: 'image/png' });
 
-        // Si el navegador soporta compartir archivos (móviles modernos)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
@@ -365,7 +362,6 @@ async function compartirCodigo() {
                 });
             } catch (e) { console.error(e); }
         } else {
-            // Si no soporta compartir imagen, cae al texto tradicional pero avisamos
             const texto = `🚗 *SMART TRASLADOS*\n\nHola! Tu código de acceso es: *${codigo}*\n\nVálido por 24 horas.`;
             window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
         }
