@@ -331,9 +331,12 @@ async function guardarTarifas() {
 }
 
 async function guardarConfiguracion() {
+    const telLimpio = document.getElementById('confTel').value.replace(/\s+/g, '').replace('+', '');
+    document.getElementById('confTel').value = telLimpio;
+
     const config = { 
         app: document.getElementById('confApp').value, 
-        tel: document.getElementById('confTel').value, 
+        tel: telLimpio, 
         mail: document.getElementById('confMail').value, 
         alias: document.getElementById('confAlias').value 
     };
@@ -345,9 +348,11 @@ async function guardarConfiguracion() {
         });
         if(res.ok) {
             localStorage.setItem('configAdmin', JSON.stringify(config));
-            alert('Configuración guardada. El botón de comprobante ahora usará este teléfono.');
+            alert('✅ CONFIGURACIÓN GUARDADA.\n\nEl número ' + telLimpio + ' ya está activo en el servidor.');
+        } else {
+            alert('❌ EL SERVIDOR NO PUDO GUARDAR. Verificá si Render está activo.');
         }
-    } catch(e) { alert("Error de red"); }
+    } catch(e) { alert("❌ ERROR DE RED: No se pudo conectar con el servidor."); }
 }
 
 async function generarNuevoCodigo() {
