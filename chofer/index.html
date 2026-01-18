@@ -396,21 +396,41 @@ setInterval(async () => {
 
 document.getElementById('btnAceptarViaje').onclick = async function() {
     detenerAlerta();
+    // CAPTURAMOS EL ID Y CAMBIAMOS EL ESTADO LOCAL INMEDIATAMENTE
+    const idViajeLocal = viajeActualId;
+    estadoActual = "en viaje"; 
+    
     try {
-        await fetch('/aceptar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ 
-            viajeId: viajeActualId, choferNombre: sesion.nombre, choferTel: sesion.telefono,
-            autoModelo: datosAuto.modelo, autoPatente: datosAuto.patente, autoColor: datosAuto.color
-        }) });
-        document.getElementById("modalViaje").style.display = "none";
-        document.getElementById("controlesEstandar").style.display = "none";
-        document.getElementById("controlesViaje").style.display = "block";
-        faseViaje = 1;
-        document.getElementById("destinoActual").innerText = "BUSCANDO A: " + direccionOrigenViaje;
-        document.getElementById("btnAccionViaje").innerText = "YA BUSQUÉ AL PASAJERO";
-        document.getElementById("btnAccionViaje").style.background = "#ffb300";
-        trazarRuta(direccionOrigenViaje);
-        estadoActual = "en viaje";
-    } catch (e) { alert("Error al aceptar"); }
+        const respuesta = await fetch('/aceptar-viaje', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                viajeId: idViajeLocal, choferNombre: sesion.nombre, choferTel: sesion.telefono,
+                autoModelo: datosAuto.modelo, autoPatente: datosAuto.patente, autoColor: datosAuto.color
+            }) 
+        });
+
+        if (respuesta.ok) {
+            document.getElementById("modalViaje").style.display = "none";
+            document.getElementById("controlesEstandar").style.display = "none";
+            document.getElementById("controlesViaje").style.display = "block";
+            faseViaje = 1;
+            document.getElementById("destinoActual").innerText = "BUSCANDO A: " + direccionOrigenViaje;
+            document.getElementById("btnAccionViaje").innerText = "YA BUSQUÉ AL PASAJERO";
+            document.getElementById("btnAccionViaje").style.background = "#ffb300";
+            trazarRuta(direccionOrigenViaje);
+        } else {
+            // SI FALLA (PORQUE OTRO LO GANÓ), RESETEAMOS TODO
+            viajeActualId = null;
+            estadoActual = "disponible";
+            document.getElementById("modalViaje").style.display = "none";
+            alert("El viaje ya no está disponible.");
+        }
+    } catch (e) { 
+        viajeActualId = null;
+        estadoActual = "disponible";
+        alert("Error al aceptar"); 
+    }
 };
 
 function gestionarFaseViaje() {
