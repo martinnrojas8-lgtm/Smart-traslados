@@ -132,6 +132,7 @@ app.post('/solicitar-viaje', async (req, res) => {
 
 app.get('/viajes-pendientes', async (req, res) => {
     try {
+        // MODIFICACIÓN: Se asegura de que el chofer solo vea viajes que sigan en "pendiente"
         const viajes = await Viaje.find({ estado: "pendiente" }).sort({ timestamp: -1 });
         res.json(viajes);
     } catch (e) { res.status(500).json({ error: "Error" }); }
@@ -140,7 +141,7 @@ app.get('/viajes-pendientes', async (req, res) => {
 app.post('/aceptar-viaje', async (req, res) => {
     try {
         const { viajeId, choferNombre, choferTel, autoModelo, autoPatente, autoColor } = req.body;
-        // ÚNICO CAMBIO: Se agrega estado: "pendiente" a la búsqueda para asegurar que solo el primer chofer lo tome.
+        // MODIFICACIÓN: Solo permite aceptar si el viaje sigue "pendiente", evitando duplicados
         const viaje = await Viaje.findOneAndUpdate({ _id: viajeId, estado: "pendiente" }, {
             chofer: choferNombre,
             choferTel: choferTel,
@@ -157,6 +158,7 @@ app.post('/aceptar-viaje', async (req, res) => {
 app.post('/finalizar-viaje', async (req, res) => {
     try {
         const { id } = req.body;
+        // MODIFICACIÓN: Se asegura de cambiar el estado a "finalizado" para que no vuelva a aparecer
         const viaje = await Viaje.findByIdAndUpdate(id, { estado: "finalizado" }, { new: true });
         if (viaje) {
             res.json({ ok: true, mensaje: "Viaje finalizado con éxito" });
