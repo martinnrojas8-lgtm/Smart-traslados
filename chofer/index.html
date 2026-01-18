@@ -443,6 +443,7 @@ function trazarRuta(destino) {
 }
 
 async function finalizarViaje() {
+    if (!viajeActualId) return;
     try {
         const respuesta = await fetch('/finalizar-viaje', { 
             method: 'POST', 
@@ -452,8 +453,13 @@ async function finalizarViaje() {
         if(respuesta.ok) {
             alert(`VIAJE FINALIZADO\n-------------------\nCOBRAR: ${infoPrecioFinal}\nRECORRIDO: ${infoDistanciaFinal}`);
             location.reload(); 
+        } else {
+            alert("Hubo un problema al finalizar en el servidor.");
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Error al finalizar viaje:", e);
+        alert("Error de conexión al finalizar.");
+    }
 }
 
 async function rechazarViaje() {
