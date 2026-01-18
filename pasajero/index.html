@@ -235,10 +235,11 @@ function iniciarModoSeguimiento() {
             const viajes = await resV.json();
             const miV = viajes.find(v => v._id === idViaje);
 
-            if (!miV || miV.estado === "finalizado" || miV.estado === "terminado") {
+            // ÚNICO CAMBIO: Si el viaje finaliza, se detiene el rastreo y se recarga la app para limpiar todo
+            if (!miV || miV.estado === "finalizado" || miV.estado === "terminado" || miV.estado === "cancelado") {
                 clearInterval(rastreo);
                 alert("VIAJE FINALIZADO. ¡Gracias por confiar en Smart Traslados!");
-                location.reload();
+                location.reload(); // Esto limpia la pantalla del pasajero por completo
                 return;
             }
 
@@ -271,7 +272,6 @@ function iniciarModoSeguimiento() {
                     markerC.setIcon(icon);
                 }
 
-                // RECALCULO DE RUTA DINÁMICO
                 directionsService.route({
                     origin: posChofer,
                     destination: miV.destino,
