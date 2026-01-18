@@ -151,6 +151,11 @@ let infoDistanciaFinal = "";
 let wakeLock = null;
 let ultimoMsgID = null; 
 
+// VARIABLES DE PERSISTENCIA PARA EL PIN
+let cacheMonto = "10.000";
+let cacheAlias = "martin.rojas78";
+let cacheTelAdmin = "";
+
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -164,43 +169,47 @@ const darkMapStyle = [
 
 async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
+    // PRECARGAMOS LA INFO DEL PIN AL INICIO PARA QUE NO HAYA PARPADEO
+    cargarInfoPinSilencioso();
     await cargarDatosChofer();
     initMap();
-    setInterval(transmitirUbicacion, 3000); // INTERVALO REDUCIDO PARA MÁS PRECISIÓN
+    setInterval(transmitirUbicacion, 3000); 
     setInterval(chequearMensajesAdmin, 15000); 
     chequearMensajesAdmin();
     solicitarWakeLock();
 }
 
-async function mostrarInfoPago(e) {
-    e.preventDefault();
-    const div = document.getElementById('infoPago');
-    if(div.style.display === 'block') { div.style.display = 'none'; return; }
-
-    let monto = "10.000"; 
-    let alias = "martin.rojas78"; 
-    let telAdmin = "";
-
+// NUEVA FUNCIÓN PARA PRECARGAR DATOS DESDE MONGO/RENDER
+async function cargarInfoPinSilencioso() {
     try {
-        const [resT, resC] = await Promise.allSettled([
+        const [resT, resC] = await Promise.all([
             fetch('/obtener-tarifas'),
             fetch('/obtener-config-admin')
         ]);
-        if (resT.status === 'fulfilled' && resT.value.ok) {
-            const dataT = await resT.value.json();
-            if (dataT.montoFijoInfo) monto = dataT.montoFijoInfo;
+        if (resT.ok) {
+            const dataT = await resT.json();
+            if (dataT.montoFijoInfo) {
+                cacheMonto = dataT.montoFijoInfo;
+                document.getElementById('montoPin').innerText = "$" + cacheMonto;
+            }
         }
-        if (resC.status === 'fulfilled' && resC.value.ok) {
-            const dataC = await resC.value.json();
-            if (dataC.alias) alias = dataC.alias;
-            if (dataC.tel) telAdmin = dataC.tel;
+        if (resC.ok) {
+            const dataC = await resC.json();
+            if (dataC.alias) cacheAlias = dataC.alias;
+            if (dataC.tel) cacheTelAdmin = dataC.tel;
+            document.getElementById('aliasPin').innerText = cacheAlias;
+            const mensajeWsp = encodeURIComponent(`Hola! Envío el comprobante de $${cacheMonto} para activar mi PIN de Smart Traslados.`);
+            document.getElementById('linkWspPin').href = `https://wa.me/${cacheTelAdmin}?text=${mensajeWsp}`;
         }
-    } catch (err) {}
-    document.getElementById('montoPin').innerText = "$" + monto;
-    document.getElementById('aliasPin').innerText = alias;
-    const mensajeWsp = encodeURIComponent("Hola! Envío el comprobante para activar mi PIN de Smart Traslados.");
-    document.getElementById('linkWspPin').href = `https://wa.me/${telAdmin}?text=${mensajeWsp}`;
-    div.style.display = 'block';
+    } catch (err) { console.error("Error precarga PIN"); }
+}
+
+async function mostrarInfoPago(e) {
+    e.preventDefault();
+    const div = document.getElementById('infoPago');
+    // Si ya está cargado, solo toggleamos visibilidad sin hacer fetch de nuevo
+    if(div.style.display === 'block') { div.style.display = 'none'; } 
+    else { div.style.display = 'block'; }
 }
 
 async function chequearMensajesAdmin() {
@@ -360,7 +369,6 @@ function transmitirUbicacion() {
         if(viajeActualId) {
             map.panTo(coords);
             if(heading) map.setHeading(heading);
-            // RECALCULO DE RUTA SI HAY CAMBIO
             trazarRuta(ultimaRutaDestino);
         }
     }, null, { enableHighAccuracy: true });
@@ -396,7 +404,6 @@ setInterval(async () => {
 
 document.getElementById('btnAceptarViaje').onclick = async function() {
     detenerAlerta();
-    // CAPTURAMOS EL ID Y CAMBIAMOS EL ESTADO LOCAL INMEDIATAMENTE
     const idViajeLocal = viajeActualId;
     estadoActual = "en viaje"; 
     
@@ -420,7 +427,6 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
             document.getElementById("btnAccionViaje").style.background = "#ffb300";
             trazarRuta(direccionOrigenViaje);
         } else {
-            // SI FALLA (PORQUE OTRO LO GANÓ), RESETEAMOS TODO
             viajeActualId = null;
             estadoActual = "disponible";
             document.getElementById("modalViaje").style.display = "none";
