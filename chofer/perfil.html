@@ -33,7 +33,7 @@
 <div class="container">
     <button class="btn-mapa-top" onclick="location.href='index.html'">MAPA</button>
 
-    <h2 id="titulo">Cargando datos...</h2>
+    <h2 id="titulo">Cargando...</h2>
     
     <label>Nombre Completo</label>
     <input type="text" id="nombre" placeholder="Ej: Juan Pérez">
@@ -74,35 +74,27 @@
     const imagenesComprimidas = { pPerfil: null, pCarnet: null, pSeguro: null, pTarjeta: null };
 
     async function cargarDatosYValidar() {
-        // Obtenemos el teléfono y nos aseguramos que sea un string limpio
-        let sesionRaw = localStorage.getItem("sesion");
-        let telLocal = localStorage.getItem('userTelefono');
-        let tel = telLocal || (sesionRaw ? JSON.parse(sesionRaw).telefono : null);
-
+        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
         if (!tel) {
             document.getElementById('titulo').innerText = "Registro Obligatorio";
             return;
         }
 
         try {
-            // Forzamos al servidor a darnos datos frescos con un parámetro aleatorio
-            const response = await fetch('/obtener-usuarios?cache=' + Math.random());
+            // El parámetro ?v= asegura que el celu NO use datos viejos guardados
+            const response = await fetch('/obtener-usuarios?v=' + Date.now());
             const usuarios = await response.json();
-            
-            // Buscamos coincidencia exacta de teléfono
-            const miPerfil = usuarios.find(u => String(u.telefono).trim() === String(tel).trim());
+            const miPerfil = usuarios.find(u => u.telefono === tel);
 
             if (miPerfil) {
-                console.log("Datos encontrados:", miPerfil);
                 document.getElementById('titulo').innerText = "Mis Datos";
                 
-                // ASIGNACIÓN EXPLÍCITA (Corrigiendo posibles discrepancias de nombres)
+                // Priorizamos los nombres de variables nuevos que usa el Admin
                 document.getElementById('nombre').value = miPerfil.nombre || "";
                 document.getElementById('modelo').value = miPerfil.autoModelo || miPerfil.modelo || "";
                 document.getElementById('patente').value = miPerfil.autoPatente || miPerfil.patente || "";
                 document.getElementById('color').value = miPerfil.autoColor || miPerfil.color || "";
 
-                // CARGA DE IMÁGENES
                 if (miPerfil.foto) {
                     document.getElementById('imgMiniatura').src = miPerfil.foto;
                     mostrarFotoExistente('pPerfil', miPerfil.foto);
@@ -114,13 +106,13 @@
                 document.getElementById('titulo').innerText = "Completar Registro";
             }
         } catch (e) { 
-            console.error("Error cargando perfil:", e);
-            document.getElementById('titulo').innerText = "Error al conectar";
+            console.error(e); 
+            document.getElementById('titulo').innerText = "Registro Obligatorio";
         }
     }
 
     function mostrarFotoExistente(id, src) {
-        if(!src || src.length < 10) return;
+        if(!src) return;
         const img = document.getElementById(id);
         img.src = src;
         img.style.display = 'block';
@@ -153,10 +145,7 @@
     }
 
     async function guardarPerfil() {
-        let sesionRaw = localStorage.getItem("sesion");
-        let telLocal = localStorage.getItem('userTelefono');
-        let tel = telLocal || (sesionRaw ? JSON.parse(sesionRaw).telefono : null);
-
+        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
         const nombre = document.getElementById('nombre').value.trim();
         const modelo = document.getElementById('modelo').value.trim();
         const patente = document.getElementById('patente').value.trim();
@@ -192,17 +181,12 @@
 
             const result = await response.json();
             if (result.mensaje === "Ok") {
-                alert("✅ ¡Perfil actualizado! Ya puedes empezar a trabajar.");
-                // Limpiamos cache local y redirigimos
-                location.href = 'index.html';
+                alert("✅ Datos guardados con éxito.");
+                // Forzamos recarga de la página para limpiar cualquier dato viejo en memoria
+                location.reload();
             }
-        } catch (error) { 
-            console.error(error);
-            alert("❌ Error al guardar. Revisa tu conexión."); 
-        } finally { 
-            btn.innerText = "GUARDAR Y ENVIAR"; 
-            btn.disabled = false; 
-        }
+        } catch (error) { alert("❌ Error al guardar."); }
+        finally { btn.innerText = "GUARDAR Y ENVIAR"; btn.disabled = false; }
     }
 
     window.onload = cargarDatosYValidar;
