@@ -16,20 +16,8 @@
         .preview-img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin-top: 10px; display: none; border: 1px solid #00c853; }
         button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 15px; }
         .btn-guardar { background: #00c853; color: #000; }
-        
         .btn-mapa-top { background: #00c853; color: #000; margin-bottom: 10px; }
-
-        .btn-whatsapp { 
-            background: transparent; 
-            color: #25d366; 
-            border: 1px solid #25d366; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 10px;
-            text-decoration: none;
-        }
-        .btn-whatsapp:active { transform: scale(0.98); }
+        .btn-whatsapp { background: transparent; color: #25d366; border: 1px solid #25d366; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -45,7 +33,7 @@
 <div class="container">
     <button class="btn-mapa-top" onclick="location.href='index.html'">MAPA</button>
 
-    <h2 id="titulo">Cargando...</h2>
+    <h2 id="titulo">Cargando datos...</h2>
     
     <label>Nombre Completo</label>
     <input type="text" id="nombre" placeholder="Ej: Juan Pérez">
@@ -78,7 +66,6 @@
     <button class="btn-guardar" id="btnGuardar" onclick="guardarPerfil()">GUARDAR Y ENVIAR</button>
 
     <a href="https://wa.me/5491100000000" target="_blank" class="btn-whatsapp" style="width: 100%; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 15px; box-sizing: border-box; display: flex;">
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.886.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
         SOPORTE TÉCNICO
     </a>
 </div>
@@ -87,31 +74,35 @@
     const imagenesComprimidas = { pPerfil: null, pCarnet: null, pSeguro: null, pTarjeta: null };
 
     async function cargarDatosYValidar() {
-        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
+        // Obtenemos el teléfono y nos aseguramos que sea un string limpio
+        let sesionRaw = localStorage.getItem("sesion");
+        let telLocal = localStorage.getItem('userTelefono');
+        let tel = telLocal || (sesionRaw ? JSON.parse(sesionRaw).telefono : null);
+
         if (!tel) {
             document.getElementById('titulo').innerText = "Registro Obligatorio";
             return;
         }
 
         try {
-            // Agregamos un timestamp para evitar que el navegador use una versión vieja (cache)
-            const response = await fetch('/obtener-usuarios?t=' + Date.now());
+            // Forzamos al servidor a darnos datos frescos con un parámetro aleatorio
+            const response = await fetch('/obtener-usuarios?cache=' + Math.random());
             const usuarios = await response.json();
-            const miPerfil = usuarios.find(u => u.telefono === tel);
+            
+            // Buscamos coincidencia exacta de teléfono
+            const miPerfil = usuarios.find(u => String(u.telefono).trim() === String(tel).trim());
 
             if (miPerfil) {
-                // Si tiene nombre o patente, consideramos que ya existe
-                if (miPerfil.nombre || miPerfil.autoPatente) {
-                    document.getElementById('titulo').innerText = "Mis Datos";
-                } else {
-                    document.getElementById('titulo').innerText = "Completar Registro";
-                }
-
+                console.log("Datos encontrados:", miPerfil);
+                document.getElementById('titulo').innerText = "Mis Datos";
+                
+                // ASIGNACIÓN EXPLÍCITA (Corrigiendo posibles discrepancias de nombres)
                 document.getElementById('nombre').value = miPerfil.nombre || "";
-                document.getElementById('modelo').value = miPerfil.autoModelo || "";
-                document.getElementById('patente').value = miPerfil.autoPatente || "";
-                document.getElementById('color').value = miPerfil.autoColor || "";
+                document.getElementById('modelo').value = miPerfil.autoModelo || miPerfil.modelo || "";
+                document.getElementById('patente').value = miPerfil.autoPatente || miPerfil.patente || "";
+                document.getElementById('color').value = miPerfil.autoColor || miPerfil.color || "";
 
+                // CARGA DE IMÁGENES
                 if (miPerfil.foto) {
                     document.getElementById('imgMiniatura').src = miPerfil.foto;
                     mostrarFotoExistente('pPerfil', miPerfil.foto);
@@ -120,16 +111,16 @@
                 if (miPerfil.fotoSeguro) mostrarFotoExistente('pSeguro', miPerfil.fotoSeguro);
                 if (miPerfil.fotoTarjeta) mostrarFotoExistente('pTarjeta', miPerfil.fotoTarjeta);
             } else {
-                document.getElementById('titulo').innerText = "Registro Obligatorio";
+                document.getElementById('titulo').innerText = "Completar Registro";
             }
         } catch (e) { 
-            console.error(e); 
-            document.getElementById('titulo').innerText = "Registro Obligatorio";
+            console.error("Error cargando perfil:", e);
+            document.getElementById('titulo').innerText = "Error al conectar";
         }
     }
 
     function mostrarFotoExistente(id, src) {
-        if(!src || src === "") return;
+        if(!src || src.length < 10) return;
         const img = document.getElementById(id);
         img.src = src;
         img.style.display = 'block';
@@ -150,7 +141,7 @@
                     canvas.width = maxW;
                     canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.6);
                     imagenesComprimidas[idPreview] = base64;
                     document.getElementById(idPreview).src = base64;
                     document.getElementById(idPreview).style.display = 'block';
@@ -162,7 +153,10 @@
     }
 
     async function guardarPerfil() {
-        let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
+        let sesionRaw = localStorage.getItem("sesion");
+        let telLocal = localStorage.getItem('userTelefono');
+        let tel = telLocal || (sesionRaw ? JSON.parse(sesionRaw).telefono : null);
+
         const nombre = document.getElementById('nombre').value.trim();
         const modelo = document.getElementById('modelo').value.trim();
         const patente = document.getElementById('patente').value.trim();
@@ -198,13 +192,17 @@
 
             const result = await response.json();
             if (result.mensaje === "Ok") {
-                alert("✅ Datos guardados con éxito.");
-                // Refrescamos los datos localmente antes de redirigir para asegurar persistencia
-                await cargarDatosYValidar();
-                window.location.href = 'index.html';
+                alert("✅ ¡Perfil actualizado! Ya puedes empezar a trabajar.");
+                // Limpiamos cache local y redirigimos
+                location.href = 'index.html';
             }
-        } catch (error) { alert("❌ Error al guardar."); }
-        finally { btn.innerText = "GUARDAR Y ENVIAR"; btn.disabled = false; }
+        } catch (error) { 
+            console.error(error);
+            alert("❌ Error al guardar. Revisa tu conexión."); 
+        } finally { 
+            btn.innerText = "GUARDAR Y ENVIAR"; 
+            btn.disabled = false; 
+        }
     }
 
     window.onload = cargarDatosYValidar;
