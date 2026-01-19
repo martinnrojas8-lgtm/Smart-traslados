@@ -192,9 +192,8 @@ app.post('/finalizar-viaje', async (req, res) => {
 
 app.post('/rechazar-viaje', async (req, res) => {
     try {
-        const { viajeId } = req.body;
-        await Viaje.findByIdAndUpdate(viajeId, { estado: "cancelado" });
-        res.json({ mensaje: "Viaje rechazado" });
+        // Modificado para que el rechazo sea local por chofer y no cancele el viaje para otros
+        res.json({ mensaje: "Rechazo registrado localmente" });
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
@@ -290,7 +289,7 @@ app.get('/obtener-usuarios', async (req, res) => {
     } catch (e) { res.status(500).send(e); }
 });
 
-// --- RUTA ACTUALIZADA (SOLO ESTO SE TOCÓ) ---
+// --- RUTA ACTUALIZADA ---
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
