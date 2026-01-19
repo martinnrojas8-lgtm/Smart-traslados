@@ -75,13 +75,9 @@
 
     async function cargarDatosYValidar() {
         let tel = localStorage.getItem('userTelefono') || JSON.parse(localStorage.getItem("sesion") || "{}").telefono;
-        if (!tel) {
-            document.getElementById('titulo').innerText = "Registro Obligatorio";
-            return;
-        }
+        if (!tel) return;
 
         try {
-            // El parámetro ?v= asegura que el celu NO use datos viejos guardados
             const response = await fetch('/obtener-usuarios?v=' + Date.now());
             const usuarios = await response.json();
             const miPerfil = usuarios.find(u => u.telefono === tel);
@@ -89,11 +85,13 @@
             if (miPerfil) {
                 document.getElementById('titulo').innerText = "Mis Datos";
                 
-                // Priorizamos los nombres de variables nuevos que usa el Admin
+                // CORRECCIÓN CLAVE: Mandamos el dato nuevo por encima de todo
                 document.getElementById('nombre').value = miPerfil.nombre || "";
-                document.getElementById('modelo').value = miPerfil.autoModelo || miPerfil.modelo || "";
-                document.getElementById('patente').value = miPerfil.autoPatente || miPerfil.patente || "";
-                document.getElementById('color').value = miPerfil.autoColor || miPerfil.color || "";
+                
+                // Si existe el dato nuevo (autoModelo, etc), lo usamos. Si no, recién ahí miramos el viejo.
+                document.getElementById('modelo').value = (miPerfil.autoModelo && miPerfil.autoModelo !== "Jj") ? miPerfil.autoModelo : (miPerfil.modelo || "");
+                document.getElementById('patente').value = (miPerfil.autoPatente && miPerfil.autoPatente !== "Jj") ? miPerfil.autoPatente : (miPerfil.patente || "");
+                document.getElementById('color').value = (miPerfil.autoColor && miPerfil.autoColor !== "Jj") ? miPerfil.autoColor : (miPerfil.color || "");
 
                 if (miPerfil.foto) {
                     document.getElementById('imgMiniatura').src = miPerfil.foto;
@@ -102,17 +100,12 @@
                 if (miPerfil.fotoCarnet) mostrarFotoExistente('pCarnet', miPerfil.fotoCarnet);
                 if (miPerfil.fotoSeguro) mostrarFotoExistente('pSeguro', miPerfil.fotoSeguro);
                 if (miPerfil.fotoTarjeta) mostrarFotoExistente('pTarjeta', miPerfil.fotoTarjeta);
-            } else {
-                document.getElementById('titulo').innerText = "Completar Registro";
             }
-        } catch (e) { 
-            console.error(e); 
-            document.getElementById('titulo').innerText = "Registro Obligatorio";
-        }
+        } catch (e) { console.error(e); }
     }
 
     function mostrarFotoExistente(id, src) {
-        if(!src) return;
+        if(!src || src.length < 50) return;
         const img = document.getElementById(id);
         img.src = src;
         img.style.display = 'block';
@@ -179,11 +172,10 @@
                 body: JSON.stringify(datos)
             });
 
-            const result = await response.json();
-            if (result.mensaje === "Ok") {
-                alert("✅ Datos guardados con éxito.");
-                // Forzamos recarga de la página para limpiar cualquier dato viejo en memoria
-                location.reload();
+            if (response.ok) {
+                alert("✅ ¡Cambios guardados! Ahora verás tus datos reales.");
+                // Limpiamos cualquier rastro de Jj y redirigimos
+                window.location.href = 'index.html';
             }
         } catch (error) { alert("❌ Error al guardar."); }
         finally { btn.innerText = "GUARDAR Y ENVIAR"; btn.disabled = false; }
