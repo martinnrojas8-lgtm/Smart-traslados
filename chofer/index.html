@@ -151,7 +151,6 @@ let infoDistanciaFinal = "";
 let wakeLock = null;
 let ultimoMsgID = null; 
 
-// VARIABLES DE PERSISTENCIA PARA EL PIN
 let cacheMonto = "10.000";
 let cacheAlias = "martin.rojas78";
 let cacheTelAdmin = "";
@@ -379,32 +378,38 @@ function toggleEstado() {
     document.getElementById("btnToggle").innerText = (estadoActual === "disponible") ? "PONERME COMO OCUPADO" : "PONERME COMO DISPONIBLE";
 }
 
-// BUSCADOR DE VIAJES CORREGIDO PARA EVITAR DUPLICADOS
+// BUSCADOR DE VIAJES CON FILTRO DE RECHAZADOS (SOLUCIONADO)
 setInterval(async () => {
-    // Si el modal ya está abierto o ya hay un ID de viaje cargado, NO buscamos más
     if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId || document.getElementById("modalViaje").style.display === "block") return;
     
     try {
         const res = await fetch('/viajes-pendientes');
         const viajes = await res.json();
+        
+        // Obtener lista de viajes rechazados por ESTE chofer
+        let rechazados = JSON.parse(localStorage.getItem('viajes_rechazados') || "[]");
+
         if (viajes.length > 0) {
-            const v = viajes[0];
-            viajeActualId = v._id; 
-            direccionOrigenViaje = v.origen;
-            direccionDestinoViaje = v.destino;
-            infoPrecioFinal = v.precio;
-            infoDistanciaFinal = v.distancia || "N/A";
-            document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}`;
-            document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b><br>DISTANCIA: <b>${infoDistanciaFinal}</b>`;
-            document.getElementById("modalViaje").style.display = "block";
-            sonarAlerta();
+            // Buscamos el primer viaje que NO esté en la lista de rechazados
+            const v = viajes.find(viaje => !rechazados.includes(viaje._id));
+            
+            if (v) {
+                viajeActualId = v._id; 
+                direccionOrigenViaje = v.origen;
+                direccionDestinoViaje = v.destino;
+                infoPrecioFinal = v.precio;
+                infoDistanciaFinal = v.distancia || "N/A";
+                document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}`;
+                document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b><br>DISTANCIA: <b>${infoDistanciaFinal}</b>`;
+                document.getElementById("modalViaje").style.display = "block";
+                sonarAlerta();
+            }
         }
     } catch (e) {
         viajeActualId = null;
     }
 }, 4000);
 
-// BOTÓN ACEPTAR CORREGIDO
 document.getElementById('btnAceptarViaje').onclick = async function() {
     detenerAlerta();
     const idParaAceptar = viajeActualId;
@@ -494,9 +499,24 @@ async function finalizarViaje() {
     }
 }
 
+// RECHAZAR VIAJE (LOCALMENTE PARA ESTE CHOFER)
 async function rechazarViaje() {
     detenerAlerta();
-    await fetch('/rechazar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId }) });
+    
+    // Guardamos el ID en la lista de rechazados local
+    let rechazados = JSON.parse(localStorage.getItem('viajes_rechazados') || "[]");
+    if (!rechazados.includes(viajeActualId)) {
+        rechazados.push(viajeActualId);
+        localStorage.setItem('viajes_rechazados', JSON.stringify(rechazados));
+    }
+
+    // Avisamos al servidor pero el servidor ya NO lo cancela para todos
+    await fetch('/rechazar-viaje', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ viajeId: viajeActualId }) 
+    });
+
     document.getElementById("modalViaje").style.display = "none";
     viajeActualId = null;
 }
