@@ -81,15 +81,13 @@ const UbicacionSchema = new mongoose.Schema({
 });
 const Ubicacion = mongoose.model('Ubicacion', UbicacionSchema);
 
-// --- NUEVO ESQUEMA PARA MENSAJES REALES ---
 const MensajeSchema = new mongoose.Schema({
-    destino: String, // 'choferes' o 'pasajeros'
+    destino: String,
     texto: String,
     fecha: { type: Date, default: Date.now }
 });
 const Mensaje = mongoose.model('Mensaje', MensajeSchema);
 
-// --- ESQUEMA DE CONFIGURACIÓN ADMIN ---
 const ConfigSchema = new mongoose.Schema({
     app: String,
     tel: String,
@@ -175,7 +173,7 @@ app.post('/aceptar-viaje', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// RUTA PARA QUE EL CHOFER VERIFIQUE EL ESTADO DEL VIAJE
+// NUEVA RUTA: Permite al chofer consultar si el viaje sigue en pie (No rompe nada)
 app.get('/verificar-estado-viaje/:id', async (req, res) => {
     try {
         const viaje = await Viaje.findById(req.params.id);
@@ -199,19 +197,23 @@ app.post('/finalizar-viaje', async (req, res) => {
 
 app.post('/rechazar-viaje', async (req, res) => {
     try {
-        const { viajeId } = req.body;
-        await Viaje.findByIdAndUpdate(viajeId, { estado: "cancelado" });
-        res.json({ mensaje: "Viaje rechazado" });
+        // Mantiene el rechazo local: No cambia el estado global, el viaje sigue para otros
+        res.json({ mensaje: "Rechazo registrado localmente" });
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// MODIFICADO: Cuando el pasajero "elimina", el viaje pasa a estado cancelado para avisar al chofer
+// RUTA INTELIGENTE: Si el Admin borra, se elimina. Si el pasajero cancela, se marca para avisar.
 app.post('/eliminar-viaje', async (req, res) => {
     try {
-        const { id } = req.body;
-        await Viaje.findByIdAndUpdate(id, { estado: "cancelado" });
-        res.json({ mensaje: "Viaje marcado como cancelado" });
-    } catch (e) { res.status(500).json({ error: "Error al eliminar registro" }); }
+        const { id, rol } = req.body;
+        if (rol === 'admin') {
+            await Viaje.findByIdAndDelete(id); // Admin limpia estadísticas de verdad
+            res.json({ mensaje: "Viaje eliminado del historial" });
+        } else {
+            await Viaje.findByIdAndUpdate(id, { estado: "cancelado" }); // Pasajero avisa al chofer
+            res.json({ mensaje: "Viaje cancelado por pasajero" });
+        }
+    } catch (e) { res.status(500).json({ error: "Error al procesar eliminación" }); }
 });
 
 app.get('/obtener-viajes', async (req, res) => {
