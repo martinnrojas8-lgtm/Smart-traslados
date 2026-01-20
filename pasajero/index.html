@@ -25,7 +25,6 @@
   .info-resumen { display: flex; justify-content: space-around; background: #222; padding: 10px; border-radius: 10px; margin: 10px 0; border: 1px solid #333; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   
-  /* Estilos para paradas */
   .btn-parada{ background:#222; color:#00c853; border:1px solid #00c853; font-size:12px; padding:5px; margin:5px 0; width:auto; display:inline-block; }
 </style>
 </head>
@@ -104,6 +103,7 @@
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, directionsService, directionsRenderer, markerC, idViaje, viajeInfo, ultimoMsgID = null;
 let paradasCount = 0;
+let marcadoresChoferes = {}; // Guardar los autitos que se ven en el mapa
 
 async function initApp() {
     if (!sesion.telefono) return location.href = "/";
@@ -128,8 +128,57 @@ async function initApp() {
         });
     });
 
+    // Iniciar el rastreo de choferes conectados apenas abre la app
+    setInterval(mostrarChoferesCercanos, 5000);
+    mostrarChoferesCercanos();
+
     setInterval(chequearMensajesAdmin, 15000);
     chequearMensajesAdmin(); 
+}
+
+// NUEVA FUNCIÓN: Mostrar todos los autos conectados en el mapa
+async function mostrarChoferesCercanos() {
+    // Si el pasajero está en viaje (idViaje existe), no mostramos otros autos para no confundir
+    if (idViaje) return;
+
+    try {
+        const res = await fetch("/obtener-choferes-activos");
+        const choferes = await res.json();
+
+        // 1. Limpiar marcadores de choferes que ya no están en la lista (desconectados)
+        const telsActivos = choferes.map(c => c.telefono);
+        for (let tel in marcadoresChoferes) {
+            if (!telsActivos.includes(tel)) {
+                marcadoresChoferes[tel].setMap(null);
+                delete marcadoresChoferes[tel];
+            }
+        }
+
+        // 2. Dibujar o actualizar los que están conectados
+        choferes.forEach(c => {
+            const pos = { lat: Number(c.lat), lng: Number(c.lng) };
+            
+            if (marcadoresChoferes[c.telefono]) {
+                // Si ya existe, solo movemos la posición
+                marcadoresChoferes[c.telefono].setPosition(pos);
+            } else {
+                // Si no existe, creamos el marcador del autito
+                marcadoresChoferes[c.telefono] = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    icon: {
+                        path: "M23.5,17h-1.5V13h1.5c0.8,0,1.5-0.7,1.5-1.5v-2c0-0.8-0.7-1.5-1.5-1.5H22l-1.5-4.5c-0.2-0.6-0.8-1-1.4-1h-10 c-0.7,0-1.2,0.4-1.4,1L6.1,8H4.5C3.7,8,3,8.7,3,9.5v2C3,12.3,3.7,13,4.5,13H6v4H4.5c-0.8,0-1.5,0.7-1.5,1.5v2 c0,0.8,0.7,1.5,1.5,1.5h19c0.8,0,1.5-0.7,1.5-1.5v-2C25,17.7,24.3,17,23.5,17z M10.2,5h7.6l1,3h-9.5L10.2,5z",
+                        fillColor: "#00c853",
+                        fillOpacity: 1,
+                        strokeWeight: 1,
+                        strokeColor: "#ffffff",
+                        scale: 1.2,
+                        anchor: new google.maps.Point(14, 14)
+                    }
+                });
+            }
+        });
+    } catch (e) { console.error("Error cargando choferes cercanos", e); }
 }
 
 function agregarParada() {
@@ -229,6 +278,10 @@ async function pedirViaje() {
         precio: document.getElementById("cuadroPrecio").innerText 
     };
     
+    // Al pedir viaje, limpiamos los otros autitos para enfocarnos en el pedido
+    for (let tel in marcadoresChoferes) { marcadoresChoferes[tel].setMap(null); }
+    marcadoresChoferes = {};
+
     fetch("/solicitar-viaje", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(pedido) })
     .then(r => r.json()).then(data => {
         idViaje = data.id; 
