@@ -24,6 +24,9 @@
   #panelSeguimiento { display: none; background: #111; border-top: 2px solid #00c853; padding: 20px; position: fixed; bottom: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 100; border-radius: 20px 20px 0 0; }
   .info-resumen { display: flex; justify-content: space-around; background: #222; padding: 10px; border-radius: 10px; margin: 10px 0; border: 1px solid #333; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+  /* Estilos para paradas */
+  .btn-parada{ background:#222; color:#00c853; border:1px solid #00c853; font-size:12px; padding:5px; margin:5px 0; width:auto; display:inline-block; }
 </style>
 </head>
 <body>
@@ -59,6 +62,8 @@
 
   <div class="card" id="cardPedido">
     <input type="text" id="origen" placeholder="Cargando ubicación...">
+    <div id="contenedorParadas"></div>
+    <button class="btn-parada" id="btnAddParada" onclick="agregarParada()">+ Agregar Parada</button>
     <input type="text" id="destino" placeholder="¿A dónde vas?">
     <div id="infoDistancia" style="text-align:center; color:#aaa; margin-top:10px;">Distancia: 0 km</div>
     <div class="price-box" id="cuadroPrecio">Total: $0</div>
@@ -98,6 +103,7 @@
 <script>
 const sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
 let map, directionsService, directionsRenderer, markerC, idViaje, viajeInfo, ultimoMsgID = null;
+let paradasCount = 0;
 
 async function initApp() {
     if (!sesion.telefono) return location.href = "/";
@@ -126,7 +132,19 @@ async function initApp() {
     chequearMensajesAdmin(); 
 }
 
-// NUEVA FUNCIÓN: Para cancelar el viaje correctamente avisando al servidor
+function agregarParada() {
+    if (paradasCount >= 3) return alert("Máximo 3 paradas");
+    paradasCount++;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Parada " + paradasCount;
+    input.className = "input-parada";
+    input.id = "parada" + paradasCount;
+    document.getElementById("contenedorParadas").appendChild(input);
+    const autocomplete = new google.maps.places.Autocomplete(input, { componentRestrictions:{country:"ar"} });
+    autocomplete.addListener("place_changed", calcularRuta);
+}
+
 async function cancelarViajePasajero() {
     if(!idViaje) return location.reload();
     if(!confirm("¿Seguro que deseas cancelar el viaje?")) return;
@@ -172,10 +190,19 @@ function marcarMensajeComoLeido() {
 function calcularRuta() {
     const o = document.getElementById("origen").value, d = document.getElementById("destino").value;
     if(!o || !d) return;
-    directionsService.route({ origin:o, destination:d, travelMode:'DRIVING' }, (res, stat) => {
+
+    let waypoints = [];
+    for (let i = 1; i <= paradasCount; i++) {
+        const pValue = document.getElementById("parada" + i).value;
+        if (pValue) waypoints.push({ location: pValue, stopover: true });
+    }
+
+    directionsService.route({ origin:o, destination:d, waypoints: waypoints, travelMode:'DRIVING' }, (res, stat) => {
         if(stat === 'OK') {
             directionsRenderer.setDirections(res);
-            let dist = res.routes[0].legs[0].distance.value / 1000;
+            let totalDist = 0;
+            res.routes[0].legs.forEach(leg => { totalDist += leg.distance.value; });
+            let dist = totalDist / 1000;
             let precio = dist <= 4 ? 3500 : dist * 900;
             document.getElementById("infoDistancia").innerText = "Distancia: " + dist.toFixed(1) + " km";
             document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precio);
