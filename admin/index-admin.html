@@ -30,7 +30,6 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 .btn-accion{ padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-right: 2px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
 #modalPerfil { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto; padding:20px; }
 .modal-contenido { background:#111; padding:20px; border-radius:10px; border:1px solid #4caf50; max-width:500px; margin:auto; }
-/* Ajuste para que las fotos se vean completas y no se corten */
 .foto-legajo { width:100%; max-height: 400px; object-fit: contain; border-radius:8px; margin-bottom:15px; border:1px solid #333; background: #000; }
 .ficha-codigo { font-size: 42px; font-weight: bold; color: #4caf50; letter-spacing: 5px; margin: 5px 0; }
 .btn-compartir { background: none; border: none; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
@@ -83,7 +82,7 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 </div>
 
 <div id="viajes" class="pantalla">
-    <div class="card"><h3>Historial de Viajes Reales</h3><div style="overflow-x:auto;"><table id="tablaViajes"><tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Estado</th><th>Acción</th></tr></table></div></div>
+    <div class="card"><h3>Historial de Viajes Reales</h3><div style="overflow-x:auto;"><table id="tablaViajes"><tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Calif.</th><th>Estado</th><th>Acción</th></tr></table></div></div>
 </div>
 
 <div id="estadisticas" class="pantalla">
@@ -234,11 +233,15 @@ async function cargarViajesReales() {
         const res = await fetch('/obtener-viajes');
         listaViajesGlobal = await res.json();
         let tV = document.getElementById('tablaViajes');
-        tV.innerHTML = `<tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Estado</th><th>Acción</th></tr>`;
+        tV.innerHTML = `<tr><th>Fecha</th><th>Hora</th><th>Chofer</th><th>Pasajero</th><th>Calif.</th><th>Estado</th><th>Acción</th></tr>`;
         listaViajesGlobal.forEach(v => {
             let color = v.estado === "finalizado" ? "#4caf50" : (v.estado === "cancelado" ? "#f44336" : "#ff9800");
             const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
-            tV.innerHTML += `<tr><td>${v.fecha}</td><td>${v.hora}</td><td>${v.chofer || 'Buscando...'}</td><td>${v.pasajero || 'S/N'}</td><td style="color:${color}; font-weight:bold;">${v.estado.toUpperCase()}</td><td><button class="btn-accion" style="background:#f44336;" onclick="eliminarViajeHistorial('${v._id}')">${iconTrash}</button></td></tr>`;
+            
+            // Lógica de estrellas agregada respetando el historial
+            let estrellasTxt = v.estrellasPasajero && v.estrellasPasajero > 0 ? v.estrellasPasajero + " ⭐" : "-";
+            
+            tV.innerHTML += `<tr><td>${v.fecha}</td><td>${v.hora}</td><td>${v.chofer || 'Buscando...'}</td><td>${v.pasajero || 'S/N'}</td><td style="color:#ffc107; font-weight:bold;">${estrellasTxt}</td><td style="color:${color}; font-weight:bold;">${v.estado.toUpperCase()}</td><td><button class="btn-accion" style="background:#f44336;" onclick="eliminarViajeHistorial('${v._id}')">${iconTrash}</button></td></tr>`;
         });
     } catch (e) { console.error("Error viajes"); }
 }
@@ -304,23 +307,13 @@ function verPerfilCompleto(tel) {
     const u = listaUsuariosGlobal.find(user => user.telefono === tel);
     if(u) {
         document.getElementById('nomPerfil').innerText = "Perfil: " + (u.nombre || 'S/N');
-        
-        // Función interna para manejar la carga o el error de imagen
         const setImg = (id, src) => {
             const el = document.getElementById(id);
-            if(src && src.trim() !== "") {
-                el.src = src;
-                el.style.display = "block";
-            } else {
-                el.src = "";
-                el.style.display = "none"; // Si no hay foto, no mostramos el cuadro vacío
-            }
+            if(src && src.trim() !== "") { el.src = src; el.style.display = "block"; } else { el.src = ""; el.style.display = "none"; }
         };
-
         setImg('imgCarnet', u.fotoCarnet);
         setImg('imgSeguro', u.fotoSeguro);
         setImg('imgTarjeta', u.fotoTarjeta);
-        
         document.getElementById('modalPerfil').style.display = 'block';
     }
 }
@@ -360,7 +353,6 @@ async function guardarTarifas() {
 async function guardarConfiguracion() {
     const telLimpio = document.getElementById('confTel').value.replace(/\s+/g, '').replace('+', '');
     document.getElementById('confTel').value = telLimpio;
-
     const config = { 
         app: document.getElementById('confApp').value, 
         tel: telLimpio, 
@@ -376,10 +368,8 @@ async function guardarConfiguracion() {
         if(res.ok) {
             localStorage.setItem('configAdmin', JSON.stringify(config));
             alert('✅ CONFIGURACIÓN GUARDADA.\n\nEl número ' + telLimpio + ' ya está activo en el servidor.');
-        } else {
-            alert('❌ EL SERVIDOR NO PUDO GUARDAR. Verificá si Render está activo.');
-        }
-    } catch(e) { alert("❌ ERROR DE RED: No se pudo conectar con el servidor."); }
+        } else { alert('❌ EL SERVIDOR NO PUDO GUARDAR.'); }
+    } catch(e) { alert("❌ ERROR DE RED."); }
 }
 
 async function generarNuevoCodigo() {
