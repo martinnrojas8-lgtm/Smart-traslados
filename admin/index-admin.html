@@ -172,7 +172,6 @@ function mostrar(id){
     }
     if(id === 'tarifas') cargarTarifas();
     if(id === 'conductores' || id === 'pasajeros' || id === 'inicio') cargarDatosReales();
-    if(id === 'config') cargarConfiguracionServidor();
 }
 
 async function enviarMensajeMasivo() {
@@ -197,23 +196,21 @@ async function cargarDatosReales() {
         const res = await fetch('/obtener-usuarios');
         listaUsuariosGlobal = await res.json();
         
-        // FILTRO INTELIGENTE: Si tiene rol 'chofer' O si tiene patente cargada lo mostramos como conductor
+        // FILTRO ARREGLADO: Si dice 'chofer' o tiene patente
         const conds = listaUsuariosGlobal.filter(u => 
             (u.rol && u.rol.toLowerCase().trim() === 'chofer') || 
             (u.autoPatente && u.autoPatente.trim() !== "")
         );
-
-        // Pasajeros: El resto que no entró en la lista de conductores
+        
         const pasas = listaUsuariosGlobal.filter(u => 
             !conds.some(c => c.telefono === u.telefono)
         );
 
         document.getElementById('cActivos').innerText = conds.length;
         document.getElementById('pTotal').innerText = pasas.length;
-        
         actualizarTablaConductores(conds);
         actualizarTablaPasajeros(pasas);
-    } catch (e) { console.error("Error cargando usuarios", e); }
+    } catch (e) { console.error("Error cargando usuarios"); }
 }
 
 function actualizarTablaConductores(conds) {
@@ -224,19 +221,7 @@ function actualizarTablaConductores(conds) {
         const docOk = c.aprobado === true;
         const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
         const colorBotonTilde = docOk ? '#4caf50' : '#f44336';
-        
-        const nombreMostrar = c.nombre ? c.nombre : (c.autoPatente ? "Chofer: " + c.autoPatente : "S/N");
-
-        tC.innerHTML += `<tr id="fila-${c.telefono}">
-            <td><a href="#" onclick="verPerfilCompleto('${c.telefono}')" style="color:#4caf50; text-decoration:none;"><b>${nombreMostrar}</b></a><br><small>${c.telefono}</small></td>
-            <td><span id="doc-${c.telefono}" class="${docOk?'estado-ok':'estado-pendiente'}">${docOk?'DOC: OK':'DOC: PEND'}</span><br><span class="${pagoAlDia?'estado-ok':'estado-off'}">${pagoAlDia?'PAGO: OK':'PAGO: VENC'}</span></td>
-            <td>$0</td>
-            <td>
-                <button id="btnTilde-${c.telefono}" class="btn-accion" style="background:${colorBotonTilde};" onclick="toggleDocumentacion('${c.telefono}', ${docOk})">✔</button>
-                <button class="btn-accion" style="background:#25d366;" onclick="window.open('https://wa.me/${c.telefono}')">✉</button>
-                <button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${c.telefono}')">${iconTrash}</button>
-            </td>
-        </tr>`;
+        tC.innerHTML += `<tr id="fila-${c.telefono}"><td><a href="#" onclick="verPerfilCompleto('${c.telefono}')" style="color:#4caf50; text-decoration:none;"><b>${c.nombre || 'S/N'}</b></a><br><small>${c.telefono}</small></td><td><span id="doc-${c.telefono}" class="${docOk?'estado-ok':'estado-pendiente'}">${docOk?'DOC: OK':'DOC: PEND'}</span><br><span class="${pagoAlDia?'estado-ok':'estado-off'}">${pagoAlDia?'PAGO: OK':'PAGO: VENC'}</span></td><td>$0</td><td><button id="btnTilde-${c.telefono}" class="btn-accion" style="background:${colorBotonTilde};" onclick="toggleDocumentacion('${c.telefono}', ${docOk})">✔</button><button class="btn-accion" style="background:#25d366;" onclick="window.open('https://wa.me/${c.telefono}')">✉</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${c.telefono}')">${iconTrash}</button></td></tr>`;
     });
 }
 
@@ -247,7 +232,7 @@ function actualizarTablaPasajeros(pasas) {
         const estaBloqueado = p.bloqueado === true;
         const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
         const colorLock = estaBloqueado ? '#f44336' : '#ff9800';
-        const nombreVisible = p.nombre || "Pasajero: " + p.telefono;
+        const nombreVisible = p.nombre || p.usuario || p.user || "Pasajero: " + p.telefono;
         tP.innerHTML += `<tr id="fila-${p.telefono}"><td><b style="color: #4caf50;">${nombreVisible}</b></td><td>${p.telefono}</td><td><button id="btnLock-${p.telefono}" class="btn-accion" style="background:${colorLock};" onclick="bloquearPasajero('${p.telefono}', ${estaBloqueado})">🔒</button><button class="btn-accion" style="background:#f44336;" onclick="eliminarUsuario('${p.telefono}')">${iconTrash}</button></td></tr>`; 
     });
 }
@@ -348,7 +333,10 @@ async function cargarTarifas() {
         if(data) {
             document.getElementById('precioBase').value = data.precioBase || "";
             document.getElementById('precioKm').value = data.precioKm || "";
-            if(data.montoFijoInfo) document.getElementById('montoFijo').value = data.montoFijoInfo;
+            if(data.montoFijoInfo) {
+                document.getElementById('montoFijo').value = data.montoFijoInfo;
+                localStorage.setItem('montoFijoInfo', data.montoFijoInfo);
+            }
         }
     } catch (e) {}
 }
@@ -357,31 +345,20 @@ async function guardarTarifas() {
     const pBase = parseInt(document.getElementById('precioBase').value);
     const pKm = parseInt(document.getElementById('precioKm').value);
     const mFijo = document.getElementById('montoFijo').value;
+    if(!mFijo) return alert("El monto no puede estar vacío.");
     try {
         const res = await fetch('/actualizar-tarifas', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ precioBase: pBase, precioKm: pKm, montoFijoInfo: mFijo }) 
         });
-        if(res.ok) alert('Tarifas guardadas');
+        if(res.ok) { localStorage.setItem('montoFijoInfo', mFijo); alert('Tarifas guardadas'); }
     } catch(e) {}
-}
-
-async function cargarConfiguracionServidor() {
-    try {
-        const res = await fetch('/obtener-config-admin');
-        const config = await res.json();
-        if(config) {
-            document.getElementById('confApp').value = config.app || "";
-            document.getElementById('confTel').value = config.tel || "";
-            document.getElementById('confMail').value = config.mail || "";
-            document.getElementById('confAlias').value = config.alias || "";
-        }
-    } catch (e) { console.error("Error cargando config", e); }
 }
 
 async function guardarConfiguracion() {
     const telLimpio = document.getElementById('confTel').value.replace(/\s+/g, '').replace('+', '');
+    document.getElementById('confTel').value = telLimpio;
     const config = { 
         app: document.getElementById('confApp').value, 
         tel: telLimpio, 
@@ -394,8 +371,11 @@ async function guardarConfiguracion() {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(config) 
         });
-        if(res.ok) alert('Configuración guardada correctamente.');
-    } catch(e) { alert("Error de red."); }
+        if(res.ok) {
+            localStorage.setItem('configAdmin', JSON.stringify(config));
+            alert('✅ CONFIGURACIÓN GUARDADA.');
+        } else { alert('❌ EL SERVIDOR NO PUDO GUARDAR.'); }
+    } catch(e) { alert("❌ ERROR DE RED."); }
 }
 
 async function generarNuevoCodigo() {
@@ -427,7 +407,15 @@ async function compartirCodigo() {
 window.onload = () => {
     cargarDatosReales();
     cargarTarifas();
-    cargarConfiguracionServidor();
+    const config = JSON.parse(localStorage.getItem('configAdmin'));
+    if(config) {
+        document.getElementById('confApp').value = config.app || "";
+        document.getElementById('confTel').value = config.tel || "";
+        document.getElementById('confMail').value = config.mail || "";
+        document.getElementById('confAlias').value = config.alias || "";
+    }
+    const montoBkp = localStorage.getItem('montoFijoInfo');
+    if(montoBkp) document.getElementById('montoFijo').value = montoBkp;
 };
 </script>
 </body>
