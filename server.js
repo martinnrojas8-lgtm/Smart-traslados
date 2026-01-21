@@ -365,16 +365,18 @@ app.get('/estado-suscripcion/:telefono', async (req, res) => {
     } catch (e) { res.status(500).send(); }
 });
 
-// --- RUTA OPTIMIZADA (LIMPIEZA AUTOMÁTICA) ---
+// --- RUTA CORREGIDA (IGNORA AUTOMÁTICAMENTE AUTOS SIN MOVIMIENTO) ---
 app.get('/obtener-choferes-activos', async (req, res) => {
     try {
-        // Solo mostramos choferes que actualizaron su ubicación en los últimos 3 minutos
-        const limiteTiempo = new Date(Date.now() - 3 * 60 * 1000);
+        // Solo mostramos choferes que actualizaron su ubicación en los últimos 5 minutos
+        const limiteTiempo = new Date(Date.now() - 5 * 60 * 1000);
         const choferes = await Ubicacion.find({
             ultimaAct: { $gte: limiteTiempo }
         }); 
         res.json(choferes);
-    } catch (e) { res.status(500).send(); }
+    } catch (e) { 
+        res.status(500).send([]); 
+    }
 });
 
 app.post('/actualizar-ubicacion-chofer', async (req, res) => {
