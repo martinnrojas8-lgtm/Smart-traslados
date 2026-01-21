@@ -53,7 +53,7 @@ const ViajeSchema = new mongoose.Schema({
     precio: String,
     distancia: String,
     estado: { type: String, default: "pendiente" }, 
-    estrellasPasajero: { type: Number, default: 0 }, // AGREGADO: Calificación dada por el chofer
+    estrellasPasajero: { type: Number, default: 0 },
     timestamp: { type: Date, default: Date.now }
 });
 const Viaje = mongoose.model('Viaje', ViajeSchema);
@@ -103,7 +103,6 @@ app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.use('/chofer', express.static(path.join(__dirname, 'chofer')));
 app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
 
-// NUEVA RUTA: PARA GUARDAR LAS ESTRELLAS DEL VIAJE
 app.post('/calificar-pasajero', async (req, res) => {
     try {
         const { viajeId, estrellas } = req.body;
@@ -213,7 +212,7 @@ app.post('/eliminar-viaje', async (req, res) => {
 
 app.get('/obtener-viajes', async (req, res) => {
     try {
-        const viajes = await Viaje.find().sort({ timestamp: -1 }).limit(50);
+        const viajes = await Viaje.find().sort({ timestamp: -1 }).limit(100); // Subido a 100 para que no se te pierdan
         res.json(viajes);
     } catch (e) { res.status(500).send(e); }
 });
@@ -259,8 +258,11 @@ app.get('/obtener-tarifas', async (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const tel = req.body.telefono.trim();
-        const rolElegido = req.body.rol.toLowerCase().trim();
-        const usuario = await Usuario.findOne({ telefono: tel, rol: rolElegido });
+        // Buscamos sin importar mayúsculas/minúsculas en el rol para evitar que queden afuera
+        const usuario = await Usuario.findOne({ 
+            telefono: tel, 
+            rol: { $regex: new RegExp("^" + req.body.rol.toLowerCase().trim() + "$", "i") } 
+        });
         if (usuario) {
             if (usuario.bloqueado) return res.status(403).json({ mensaje: "Usuario bloqueado" });
             usuario.pagoActivo = usuario.vencimientoPago && usuario.vencimientoPago > new Date();
@@ -276,11 +278,14 @@ app.post('/register', async (req, res) => {
         const existe = await Usuario.findOne({ telefono });
         if(existe) {
             if (existe.bloqueado) return res.status(403).json({ mensaje: "Número bloqueado" });
+            // Si existe pero el rol cambió (raro pero posible), lo actualizamos
+            existe.rol = rol.toLowerCase().trim();
+            await existe.save();
             return res.json({ mensaje: "Ok", usuario: existe });
         }
         const nuevo = new Usuario({ 
             telefono, 
-            rol: rol.toLowerCase(),
+            rol: rol.toLowerCase().trim(),
             nombre: nombre || "" 
         });
         await nuevo.save();
@@ -290,6 +295,7 @@ app.post('/register', async (req, res) => {
 
 app.get('/obtener-usuarios', async (req, res) => {
     try {
+        // Obtenemos todos los usuarios para que el Admin decida cómo filtrarlos
         const usuarios = await Usuario.find().sort({ fechaRegistro: -1 });
         res.json(usuarios);
     } catch (e) { res.status(500).send(e); }
@@ -298,16 +304,20 @@ app.get('/obtener-usuarios', async (req, res) => {
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
-        await Usuario.findOneAndUpdate({ telefono: d.telefono }, { 
-            nombre: d.nombre, 
-            autoModelo: d.autoModelo || d.modelo, 
-            autoPatente: d.autoPatente || d.patente, 
-            autoColor: d.autoColor || d.color, 
-            foto: d.foto || d.fotoPerfil, 
+        // LIMPIEZA DE DATOS: Aseguramos que se guarden en los campos correctos del Esquema
+        const actualizacion = {
+            nombre: d.nombre,
+            autoModelo: d.autoModelo || d.modelo,
+            autoPatente: d.autoPatente || d.patente,
+            autoColor: d.autoColor || d.color,
+            foto: d.foto || d.fotoPerfil,
             fotoCarnet: d.fotoCarnet,
-            fotoSeguro: d.fotoSeguro, 
-            fotoTarjeta: d.fotoTarjeta 
-        });
+            fotoSeguro: d.fotoSeguro,
+            fotoTarjeta: d.fotoTarjeta,
+            rol: 'chofer' // RE-ASEGURAMOS el rol para que no desaparezca del Admin
+        };
+
+        await Usuario.findOneAndUpdate({ telefono: d.telefono }, actualizacion);
         res.json({ mensaje: "Ok" });
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
