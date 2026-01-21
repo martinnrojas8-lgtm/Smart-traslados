@@ -168,7 +168,6 @@ function setRating(n) {
 }
 
 async function enviarCalificacion() {
-    // Si tienes el server listo, esto enviará el puntaje. Si no, solo recarga.
     try {
         await fetch('/calificar-chofer', {
             method: 'POST',
@@ -204,8 +203,11 @@ async function mostrarChoferesCercanos() {
                     position: pos,
                     map: map,
                     icon: {
-                        path: "M23.5,17h-1.5V13h1.5c0.8,0,1.5-0.7,1.5-1.5v-2c0-0.8-0.7-1.5-1.5-1.5H22l-1.5-4.5c-0.2-0.6-0.8-1-1.4-1h-10 c-0.7,0-1.2,0.4-1.4,1L6.1,8H4.5C3.7,8,3,8.7,3,9.5v2C3,12.3,3.7,13,4.5,13H6v4H4.5c-0.8,0-1.5,0.7-1.5,1.5v2 c0,0.8,0.7,1.5,1.5,1.5h19c0.8,0,1.5-0.7,1.5-1.5v-2C25,17.7,24.3,17,23.5,17z M10.2,5h7.6l1,3h-9.5L10.2,5z",
-                        fillColor: "#00c853", fillOpacity: 1, strokeWeight: 1, strokeColor: "#ffffff", scale: 1.2, anchor: new google.maps.Point(14, 14)
+                        // Cambiado a tu logo circular de la imagen
+                        url: "file_000000008fd0720eb71af76359ccb359.png", 
+                        scaledSize: new google.maps.Size(40, 40),
+                        origin: new google.maps.Point(0,0),
+                        anchor: new google.maps.Point(20, 20)
                     }
                 });
             }
@@ -323,7 +325,6 @@ function iniciarModoSeguimiento() {
             const viajes = await resV.json();
             const miV = viajes.find(v => v._id === idViaje);
 
-            // DETECCION DE VIAJE FINALIZADO
             if (!miV || miV.estado === "finalizado" || miV.estado === "terminado" || miV.estado === "cancelado") {
                 clearInterval(rastreo);
                 document.getElementById("panelSeguimiento").style.display = "none";
@@ -341,10 +342,17 @@ function iniciarModoSeguimiento() {
             if(c) {
                 const posChofer = { lat: Number(c.lat), lng: Number(c.lng) };
                 if(!markerC) {
-                    markerC = new google.maps.Marker({ position: posChofer, map: map, icon:{ path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 7, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, rotation: Number(c.heading)||0 } });
+                    markerC = new google.maps.Marker({ 
+                        position: posChofer, 
+                        map: map, 
+                        icon:{ 
+                            url: "file_000000008fd0720eb71af76359ccb359.png", // También en seguimiento
+                            scaledSize: new google.maps.Size(40, 40),
+                            anchor: new google.maps.Point(20, 20)
+                        } 
+                    });
                 } else { 
                     markerC.setPosition(posChofer);
-                    let icon = markerC.getIcon(); icon.rotation = Number(c.heading)||0; markerC.setIcon(icon);
                 }
                 directionsService.route({ origin: posChofer, destination: miV.destino, travelMode: 'DRIVING' }, (res, stat) => {
                     if(stat === 'OK') directionsRenderer.setDirections(res);
