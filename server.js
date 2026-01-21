@@ -83,7 +83,7 @@ const UbicacionSchema = new mongoose.Schema({
     lat: Number,
     lng: Number,
     estado: String,
-    socketId: String, // Guardamos el ID de conexión para limpieza
+    socketId: String, 
     ultimaAct: { type: Date, default: Date.now }
 });
 const Ubicacion = mongoose.model('Ubicacion', UbicacionSchema);
@@ -103,16 +103,15 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.model('Config', ConfigSchema);
 
-// --- LÓGICA DE SOCKETS (DETECCIÓN INSTANTÁNEA) ---
+// --- LÓGICA DE SOCKETS ---
 io.on('connection', (socket) => {
     socket.on('registrar-chofer', async (telefono) => {
         await Ubicacion.findOneAndUpdate({ telefono }, { socketId: socket.id });
     });
 
     socket.on('disconnect', async () => {
-        // Al desconectarse, eliminamos su ubicación para que salga del mapa
         await Ubicacion.findOneAndDelete({ socketId: socket.id });
-        io.emit('actualizar-mapa'); // Avisa a pasajeros que refresquen
+        io.emit('actualizar-mapa'); 
     });
 });
 
@@ -161,7 +160,6 @@ app.get('/obtener-ultimo-mensaje/:rol', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al obtener mensaje" }); }
 });
 
-// --- RUTAS DE VIAJES ---
 app.post('/solicitar-viaje', async (req, res) => {
     try {
         const d = req.body;
@@ -367,9 +365,14 @@ app.get('/estado-suscripcion/:telefono', async (req, res) => {
     } catch (e) { res.status(500).send(); }
 });
 
+// --- RUTA OPTIMIZADA (LIMPIEZA AUTOMÁTICA) ---
 app.get('/obtener-choferes-activos', async (req, res) => {
     try {
-        const choferes = await Ubicacion.find({}); 
+        // Solo mostramos choferes que actualizaron su ubicación en los últimos 3 minutos
+        const limiteTiempo = new Date(Date.now() - 3 * 60 * 1000);
+        const choferes = await Ubicacion.find({
+            ultimaAct: { $gte: limiteTiempo }
+        }); 
         res.json(choferes);
     } catch (e) { res.status(500).send(); }
 });
