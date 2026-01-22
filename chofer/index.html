@@ -153,19 +153,18 @@ async function initApp() {
 }
 
 function activarYToggle() {
-    // --- ESCUDO DE AUDIO PARA EVITAR CIERRE (NUEVO) ---
+    // --- ESCUDO DE AUDIO PARA EVITAR CIERRE ---
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        gain.gain.value = 0; // Silencio total
+        gain.gain.value = 0; 
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        console.log("Escudo de audio activo");
-    } catch (e) { console.log("Audio Shield Error"); }
+    } catch (e) {}
     
-    activarKeepAlive(); // Activa el video invisible que ya tenías
+    activarKeepAlive(); 
     toggleEstado();
 }
 
@@ -276,7 +275,7 @@ function initMap() {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         map = new google.maps.Map(document.getElementById("map"), { center: myPos, zoom: 17, disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] } ] });
         marker = new google.maps.Marker({ position: myPos, map: map, icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
-        directionsService = new google.maps.DirectionsService(); directionsRenderer = new directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true });
+        directionsService = new google.maps.DirectionsService(); directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true });
     }, null, { enableHighAccuracy: true });
 }
 
