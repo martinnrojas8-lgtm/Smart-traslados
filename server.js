@@ -213,6 +213,25 @@ app.post('/finalizar-viaje', async (req, res) => {
     }
 });
 
+// NUEVA RUTA: FINALIZACIÓN DESDE EL PANEL ADMIN
+app.post('/finalizar-viaje-admin', async (req, res) => {
+    try {
+        const { viajeId, monto } = req.body;
+        const viaje = await Viaje.findByIdAndUpdate(viajeId, { 
+            estado: "finalizado", 
+            precio: monto 
+        }, { new: true });
+        
+        if (viaje) {
+            res.json({ ok: true, mensaje: "Viaje finalizado por admin" });
+        } else {
+            res.status(404).json({ ok: false, mensaje: "Viaje no encontrado" });
+        }
+    } catch (e) {
+        res.status(500).json({ ok: false, error: "Error al finalizar viaje" });
+    }
+});
+
 app.post('/rechazar-viaje', async (req, res) => {
     try {
         res.json({ mensaje: "Rechazo registrado localmente" });
@@ -365,10 +384,8 @@ app.get('/estado-suscripcion/:telefono', async (req, res) => {
     } catch (e) { res.status(500).send(); }
 });
 
-// --- RUTA CORREGIDA (IGNORA AUTOMÁTICAMENTE AUTOS SIN MOVIMIENTO) ---
 app.get('/obtener-choferes-activos', async (req, res) => {
     try {
-        // Solo mostramos choferes que actualizaron su ubicación en los últimos 5 minutos
         const limiteTiempo = new Date(Date.now() - 5 * 60 * 1000);
         const choferes = await Ubicacion.find({
             ultimaAct: { $gte: limiteTiempo }
