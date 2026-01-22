@@ -2,9 +2,9 @@ const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors'); 
-const http = require('http'); // Necesario para Sockets
-const { Server } = require('socket.io'); // Necesario para Sockets
-const https = require('https'); // USAMOS EL NATIVO (Sin instalar nada extra)
+const http = require('http'); 
+const { Server } = require('socket.io'); 
+const https = require('https'); 
 
 const app = express();
 const server = http.createServer(app); 
@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- FUNCIÓN DE TELEGRAM (TOKEN VERIFICADO CARÁCTER POR CARÁCTER) ---
+// --- FUNCIÓN DE TELEGRAM (VERIFICADO CON FOTO 1000710347.JPG) ---
 const TELEGRAM_TOKEN = '8052546878:AAF-Enh2ar_O9WYXe5u_bP8vSyjli7KfcdE';
 const TELEGRAM_CHAT_ID = '-5185887027';
 
@@ -211,7 +211,6 @@ app.post('/solicitar-viaje', async (req, res) => {
         });
         await nuevoViaje.save();
         
-        // NOTIFICAR A TELEGRAM
         enviarNotificacionTelegram(nuevoViaje);
         
         res.json({ mensaje: "Viaje solicitado con éxito", id: nuevoViaje._id });
