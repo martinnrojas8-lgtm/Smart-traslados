@@ -16,8 +16,8 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- FUNCIÓN DE TELEGRAM (SEGURA PARA RENDER) ---
-const TELEGRAM_TOKEN = '8052546878:AAG4hKT5-306Y1lcMS5rtcg9_ondxcPR7ag';
+// --- FUNCIÓN DE TELEGRAM ACTUALIZADA ---
+const TELEGRAM_TOKEN = '8052546878:AAF-Enh2ar_O9WYXe5u_bP8vSyjli7KfcdE';
 const TELEGRAM_CHAT_ID = '-5185887027';
 
 function enviarNotificacionTelegram(viaje) {
@@ -42,7 +42,7 @@ function enviarNotificacionTelegram(viaje) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Content-Length': data.length
+            'Content-Length': Buffer.byteLength(data)
         }
     };
 
@@ -211,7 +211,7 @@ app.post('/solicitar-viaje', async (req, res) => {
         });
         await nuevoViaje.save();
         
-        // NOTIFICAR A TELEGRAM SIN INSTALAR NADA EXTRA
+        // NOTIFICAR A TELEGRAM
         enviarNotificacionTelegram(nuevoViaje);
         
         res.json({ mensaje: "Viaje solicitado con éxito", id: nuevoViaje._id });
