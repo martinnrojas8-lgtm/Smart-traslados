@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors'); 
 const http = require('http'); // Necesario para Sockets
 const { Server } = require('socket.io'); // Necesario para Sockets
-const https = require('https'); // Necesario para Telegram
 
 const app = express();
 const server = http.createServer(app); // Envolvemos app en server
@@ -15,42 +14,6 @@ app.use(cors());
 // Configuración para recibir fotos pesadas
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-
-// --- FUNCIÓN DE NOTIFICACIÓN TELEGRAM (DATOS SEGÚN CAPTURAS) ---
-const TELEGRAM_TOKEN = '8052546878:AAG4hKT5-306Y1lcMS5rtcg9_ondxcpR7ag';
-const TELEGRAM_CHAT_ID = '-5185887027';
-
-function enviarNotificacionTelegram(viaje) {
-    const texto = `🚨 *NUEVO VIAJE SOLICITADO*\n\n` +
-                  `👤 *Pasajero:* ${viaje.pasajero}\n` +
-                  `📍 *Origen:* ${viaje.origen}\n` +
-                  `🏁 *Destino:* ${viaje.destino}\n` +
-                  `💰 *Precio:* ${viaje.precio}\n` +
-                  `📞 *Tel:* ${viaje.pasajeroTel}\n\n` +
-                  `🚕 _Revisar Panel de Control_`;
-
-    const data = JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: texto,
-        parse_mode: 'Markdown'
-    });
-
-    const options = {
-        hostname: 'api.telegram.org',
-        port: 443,
-        path: `/bot${TELEGRAM_TOKEN}/sendMessage`,
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-        }
-    };
-
-    const req = https.request(options);
-    req.on('error', (error) => console.error("Error Telegram:", error));
-    req.write(data);
-    req.end();
-}
 
 // --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
@@ -210,10 +173,6 @@ app.post('/solicitar-viaje', async (req, res) => {
             estado: "pendiente"
         });
         await nuevoViaje.save();
-
-        // LLAMADA A TELEGRAM
-        enviarNotificacionTelegram(nuevoViaje);
-
         res.json({ mensaje: "Viaje solicitado con éxito", id: nuevoViaje._id });
     } catch (e) { res.status(500).json({ error: "Error al solicitar viaje" }); }
 });
@@ -254,6 +213,7 @@ app.post('/finalizar-viaje', async (req, res) => {
     }
 });
 
+// NUEVA RUTA: FINALIZACIÓN DESDE EL PANEL ADMIN
 app.post('/finalizar-viaje-admin', async (req, res) => {
     try {
         const { viajeId, monto } = req.body;
