@@ -150,12 +150,9 @@ async function initApp() {
     if(!sesion.telefono) return location.href = "/"; 
     cargarInfoPinSilencioso(); await cargarDatosChofer(); initMap();
     setInterval(transmitirUbicacion, 3000); setInterval(chequearMensajesAdmin, 15000); chequearMensajesAdmin();
-    
-    // RECUPERACIÓN DE EMERGENCIA AL INICIAR
     setTimeout(recuperarViajeActivo, 2000);
 }
 
-// --- FUNCIÓN PARA GUARDAR ESTADO ---
 function guardarProgresoViaje() {
     if(!viajeActualId) return;
     const backup = {
@@ -170,7 +167,6 @@ function guardarProgresoViaje() {
     localStorage.setItem("viaje_en_curso", JSON.stringify(backup));
 }
 
-// --- FUNCIÓN PARA RECUPERAR ESTADO ---
 function recuperarViajeActivo() {
     const backup = JSON.parse(localStorage.getItem("viaje_en_curso"));
     if (backup && backup.id) {
@@ -182,15 +178,12 @@ function recuperarViajeActivo() {
         infoPrecioFinal = backup.precio;
         infoDistanciaFinal = backup.distancia;
         estadoActual = "en viaje";
-
         document.getElementById("controlesEstandar").style.display = "none";
         document.getElementById("controlesViaje").style.display = "block";
-        
         if (pasajeroTelActual) {
             document.getElementById("btnLlamarCel").href = "tel:" + pasajeroTelActual;
             document.getElementById("btnWspPasajero").href = `https://wa.me/${pasajeroTelActual}?text=Hola,%20estoy%20en%20camino`;
         }
-
         actualizarUIFase();
         ultimaRutaDestino = (faseViaje === 1) ? direccionOrigenViaje : direccionDestinoViaje;
         trazarRuta(ultimaRutaDestino);
@@ -248,8 +241,6 @@ async function confirmarFinalizacionPostPuntaje() {
     try {
         await fetch('/calificar-pasajero', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId, estrellas: currentRatingChofer }) });
         await fetch('/finalizar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: viajeActualId }) });
-        
-        // LIMPIEZA DE MEMORIA AL TERMINAR
         localStorage.removeItem("viaje_en_curso");
         location.reload(); 
     } catch (e) { location.reload(); }
@@ -360,7 +351,7 @@ function toggleEstado() {
 }
 
 setInterval(async () => {
-    if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId || document.getElementById("modalViaje").style.display === "block") return;
+    if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId || document.getElementById("modalViaje").style.display === "flex") return;
     try {
         const res = await fetch('/viajes-pendientes'); const viajes = await res.json();
         let rechazados = JSON.parse(localStorage.getItem('viajes_rechazados') || "[]");
@@ -372,10 +363,8 @@ setInterval(async () => {
             infoPrecioFinal = v.precio; 
             infoDistanciaFinal = v.distancia || "0 km";
             pasajeroTelActual = v.pasajeroTel;
-
-            document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}`;
+            document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}`;
             document.getElementById("detallesRuta").innerHTML = `PRECIO: <b style="font-size:18px">${v.precio}</b>`;
-            
             if(pasajeroTelActual) { 
                 document.getElementById("btnLlamarPrevio").href = "tel:" + pasajeroTelActual; 
                 document.getElementById("btnLlamarPrevio").style.display = "flex"; 
@@ -394,18 +383,14 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
             document.getElementById("modalViaje").style.display = "none"; 
             document.getElementById("controlesEstandar").style.display = "none"; 
             document.getElementById("controlesViaje").style.display = "block";
-            
             if(pasajeroTelActual) {
                 document.getElementById("btnLlamarCel").href = "tel:" + pasajeroTelActual;
                 document.getElementById("btnWspPasajero").href = `https://wa.me/${pasajeroTelActual}?text=Hola,%20estoy%20en%20camino`;
             }
-
             faseViaje = 1; 
             actualizarUIFase();
             ultimaRutaDestino = direccionOrigenViaje;
             trazarRuta(direccionOrigenViaje);
-            
-            // GUARDAMOS EL INICIO DEL VIAJE
             guardarProgresoViaje();
         } else { location.reload(); }
     } catch (e) { location.reload(); }
@@ -424,7 +409,7 @@ function gestionarFaseViaje() {
         return; 
     }
     actualizarUIFase();
-    guardarProgresoViaje(); // GUARDAMOS EL CAMBIO DE FASE
+    guardarProgresoViaje();
 }
 
 function trazarRuta(destino) {
