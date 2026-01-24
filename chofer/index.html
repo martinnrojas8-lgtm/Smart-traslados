@@ -134,6 +134,7 @@ let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; let faseViaje = 1; let audioInterval;
 let infoPrecioFinal = ""; let infoDistanciaFinal = ""; let monitorCancelacion = null; let currentRatingChofer = 0;
 let pasajeroTelActual = null;
+let ultimaPosicionMapa = null; // Para control de salto de GPS
 
 function activarKeepAlive() {
     const video = document.getElementById('keepAliveVideo');
@@ -335,10 +336,33 @@ function initMap() {
 function transmitirUbicacion() {
     if(!pagoConfirmado) return; 
     navigator.geolocation.getCurrentPosition(pos => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; const heading = pos.coords.heading || 0; 
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; 
+        const heading = pos.coords.heading || 0; 
+
+        // 1. Siempre enviamos al servidor para que el pasajero nos vea avanzar real
         fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, heading: heading, estado: estadoActual }) });
+        
+        // 2. Actualizamos el marcador (la flechita) siempre
         if(marker) { marker.setPosition(coords); }
-        if(viajeActualId) { map.panTo(coords); trazarRuta(ultimaRutaDestino); }
+
+        // 3. Lógica Anti-Salto para el Mapa (panTo)
+        if(viajeActualId) { 
+            if (ultimaPosicionMapa) {
+                const p1 = new google.maps.LatLng(ultimaPosicionMapa.lat, ultimaPosicionMapa.lng);
+                const p2 = new google.maps.LatLng(coords.lat, coords.lng);
+                const distancia = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
+                
+                // Solo recentramos el mapa si se movió más de 12 metros
+                if (distancia > 12) {
+                    map.panTo(coords);
+                    ultimaPosicionMapa = coords;
+                }
+            } else {
+                map.panTo(coords);
+                ultimaPosicionMapa = coords;
+            }
+            trazarRuta(ultimaRutaDestino); 
+        }
     }, null, { enableHighAccuracy: true });
 }
 
