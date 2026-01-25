@@ -134,24 +134,45 @@ let paradasCount = 0;
 let marcadoresChoferes = {};
 let currentRating = 0;
 
+// Configuración de zona Saladillo (Radio 40km)
+const centroSaladillo = { lat: -35.638, lng: -59.779 };
+
 async function initApp() {
     if (!sesion.telefono) return location.href = "/";
     if(sesion.foto) { document.getElementById("fotoHeader").src = sesion.foto; document.getElementById("fotoHeader").style.display = "block"; }
-    map = new google.maps.Map(document.getElementById("map"), { center: {lat:-35.638, lng:-59.779}, zoom: 15, disableDefaultUI: true });
+    map = new google.maps.Map(document.getElementById("map"), { center: centroSaladillo, zoom: 15, disableDefaultUI: true });
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true, preserveViewport: true });
-    const autoO = new google.maps.places.Autocomplete(document.getElementById("origen"), { componentRestrictions:{country:"ar"} });
-    const autoD = new google.maps.places.Autocomplete(document.getElementById("destino"), { componentRestrictions:{country:"ar"} });
+    
+    // Autocomplete con prioridad en radio de Saladillo
+    const defaultBounds = {
+        north: centroSaladillo.lat + 0.4,
+        south: centroSaladillo.lat - 0.4,
+        east: centroSaladillo.lng + 0.5,
+        west: centroSaladillo.lng - 0.5,
+    };
+
+    const autoOptions = {
+        bounds: defaultBounds,
+        componentRestrictions: { country: "ar" },
+        fields: ["address_components", "geometry", "name"],
+        strictBounds: false
+    };
+
+    const autoO = new google.maps.places.Autocomplete(document.getElementById("origen"), autoOptions);
+    const autoD = new google.maps.places.Autocomplete(document.getElementById("destino"), autoOptions);
     autoO.addListener("place_changed", calcularRuta); 
     autoD.addListener("place_changed", calcularRuta);
     
-    // Escuchar cuando el usuario borra manualmente el texto de los inputs principales
     document.getElementById("origen").addEventListener("input", function(){ if(this.value==="") calcularRuta(); });
     document.getElementById("destino").addEventListener("input", function(){ if(this.value==="") calcularRuta(); });
 
     if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p => {
         const pos = { lat: p.coords.latitude, lng: p.coords.longitude }; 
-        map.setCenter(pos);
+        // Solo centrar si está cerca de Saladillo, sino dejar centro por defecto
+        if(calcularDistanciaFisica(centroSaladillo.lat, centroSaladillo.lng, pos.lat, pos.lng) < 50) {
+            map.setCenter(pos);
+        }
         new google.maps.Geocoder().geocode({location:pos}, r => { 
             if(r[0]) document.getElementById("origen").value=r[0].formatted_address; 
             calcularRuta(); 
@@ -162,17 +183,23 @@ async function initApp() {
     chequearMensajesAdmin(); 
 }
 
+function calcularDistanciaFisica(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
 function setRating(n) {
     currentRating = n;
     const stars = document.querySelectorAll('.star');
-    stars.forEach((s, i) => {
-        s.classList.toggle('active', i < n);
-    });
+    stars.forEach((s, i) => { s.classList.toggle('active', i < n); });
     const textos = ["Horrible", "Malo", "Regular", "Bueno", "¡Excelente!"];
     document.getElementById("txtRating").innerText = textos[n-1];
     const btn = document.getElementById("btnEnviarPuntaje");
-    btn.style.opacity = "1";
-    btn.style.pointerEvents = "auto";
+    btn.style.opacity = "1"; btn.style.pointerEvents = "auto";
 }
 
 async function enviarCalificacion() {
@@ -180,13 +207,9 @@ async function enviarCalificacion() {
         await fetch('/calificar-chofer', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                viajeId: idViaje, 
-                choferTel: viajeInfo.choferTel, 
-                estrellas: currentRating 
-            })
+            body: JSON.stringify({ viajeId: idViaje, choferTel: viajeInfo.choferTel, estrellas: currentRating })
         });
-    } catch(e) { console.log("Calificación guardada localmente"); }
+    } catch(e) { }
     location.reload();
 }
 
@@ -208,14 +231,8 @@ async function mostrarChoferesCercanos() {
                 marcadoresChoferes[c.telefono].setPosition(pos);
             } else {
                 marcadoresChoferes[c.telefono] = new google.maps.Marker({
-                    position: pos,
-                    map: map,
-                    icon: {
-                        url: "/file_000000008fd0720eb71af76359ccb359.png", 
-                        scaledSize: new google.maps.Size(40, 40),
-                        origin: new google.maps.Point(0,0),
-                        anchor: new google.maps.Point(20, 20)
-                    }
+                    position: pos, map: map,
+                    icon: { url: "/file_000000008fd0720eb71af76359ccb359.png", scaledSize: new google.maps.Size(40, 40), anchor: new google.maps.Point(20, 20) }
                 });
             }
         });
@@ -224,33 +241,19 @@ async function mostrarChoferesCercanos() {
 
 function agregarParada() {
     if (document.querySelectorAll(".fila-parada").length >= 3) return alert("Máximo 3 paradas");
-    
     paradasCount++;
     const div = document.createElement("div");
     div.className = "fila-parada";
     div.id = "contParada" + paradasCount;
-
     const input = document.createElement("input");
-    input.type = "text"; 
-    input.placeholder = "Parada...";
-    input.className = "input-parada"; 
-    input.id = "parada" + paradasCount;
-    
-    // Si borran el texto manualmente
+    input.type = "text"; input.placeholder = "Parada...";
+    input.className = "input-parada"; input.id = "parada" + paradasCount;
     input.addEventListener("input", function(){ if(this.value==="") calcularRuta(); });
-
     const btn = document.createElement("button");
-    btn.className = "btn-remove-parada";
-    btn.innerText = "X";
-    btn.onclick = function() {
-        div.remove();
-        calcularRuta();
-    };
-
-    div.appendChild(input);
-    div.appendChild(btn);
+    btn.className = "btn-remove-parada"; btn.innerText = "X";
+    btn.onclick = function() { div.remove(); calcularRuta(); };
+    div.appendChild(input); div.appendChild(btn);
     document.getElementById("contenedorParadas").appendChild(div);
-
     const autocomplete = new google.maps.places.Autocomplete(input, { componentRestrictions:{country:"ar"} });
     autocomplete.addListener("place_changed", calcularRuta);
 }
@@ -290,34 +293,21 @@ function calcularRuta() {
         document.getElementById("cuadroPrecio").innerText = "Total: $0";
         return;
     }
-    
     let waypoints = [];
-    const inputsParada = document.querySelectorAll(".input-parada");
-    inputsParada.forEach(inp => {
-        if (inp.value.trim() !== "") {
-            waypoints.push({ location: inp.value, stopover: true });
-        }
+    document.querySelectorAll(".input-parada").forEach(inp => {
+        if (inp.value.trim() !== "") waypoints.push({ location: inp.value, stopover: true });
     });
-
     directionsService.route({ origin:o, destination:d, waypoints: waypoints, travelMode:'DRIVING' }, (res, stat) => {
         if(stat === 'OK') {
             directionsRenderer.setDirections(res);
             let totalDist = 0;
             res.routes[0].legs.forEach(leg => { totalDist += leg.distance.value; });
             let dist = totalDist / 1000;
-            
-            // Nueva lógica de escalones de precio
             let precio;
-            if (dist <= 3) {
-                precio = 3500;
-            } else if (dist > 3 && dist <= 3.5) {
-                precio = 4000;
-            } else if (dist > 3.5 && dist <= 5) {
-                precio = 4500;
-            } else {
-                precio = dist * 900;
-            }
-            
+            if (dist <= 3) precio = 3500;
+            else if (dist <= 3.5) precio = 4000;
+            else if (dist <= 5) precio = 4500;
+            else precio = dist * 900;
             document.getElementById("infoDistancia").innerText = "Distancia: " + dist.toFixed(1) + " km";
             document.getElementById("cuadroPrecio").innerText = "Total: $" + Math.round(precio);
         }
@@ -326,30 +316,40 @@ function calcularRuta() {
 
 async function pedirViaje() {
     const btn = document.getElementById("btnPedir");
-    btn.disabled = true;
-    btn.innerText = "PROCESANDO PEDIDO...";
-    btn.style.opacity = "0.6";
+    btn.disabled = true; btn.innerText = "VALIDANDO UBICACIÓN..."; btn.style.opacity = "0.6";
+
+    // Bloqueo de zona 40km
+    const geocoder = new google.maps.Geocoder();
+    const origenTexto = document.getElementById("origen").value;
+    try {
+        const geoRes = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address: origenTexto }, (results, status) => {
+                if (status === 'OK') resolve(results[0].geometry.location);
+                else reject(status);
+            });
+        });
+        const distDesdeCentro = calcularDistanciaFisica(centroSaladillo.lat, centroSaladillo.lng, geoRes.lat(), geoRes.lng());
+        if (distDesdeCentro > 40) {
+            alert("LO SENTIMOS: Smart Traslados solo opera en Saladillo y alrededores (máximo 40km).");
+            btn.disabled = false; btn.innerText = "SOLICITAR AHORA"; btn.style.opacity = "1";
+            return;
+        }
+    } catch (e) { console.log("Error de zona"); }
 
     try {
         const resU = await fetch('/obtener-usuarios');
         const usuarios = await resU.json();
         const yo = usuarios.find(u => u.telefono === sesion.telefono);
-        if (yo && yo.bloqueado) { 
-            alert("AVISO: Cuenta inhabilitada."); 
-            location.reload();
-            return; 
-        }
+        if (yo && yo.bloqueado) { alert("AVISO: Cuenta inhabilitada."); location.reload(); return; }
     } catch (e) { }
 
-    // Capturar paradas para el servidor
     let paradasTexto = "";
-    const inputsParada = document.querySelectorAll(".input-parada");
-    inputsParada.forEach(inp => {
+    document.querySelectorAll(".input-parada").forEach(inp => {
         if(inp.value.trim() !== "") paradasTexto += inp.value + " | ";
     });
 
     const pedido = { 
-        pasajeroTel: sesion.telefono, pasajeroNombre: sesion.nombre, 
+        pasajeroTel: sesion.telefono, pasajeroNombre: sesion.nombre || "Usuario", 
         origen: document.getElementById("origen").value, 
         destino: document.getElementById("destino").value, 
         parada: paradasTexto,
@@ -357,11 +357,8 @@ async function pedirViaje() {
         distancia: document.getElementById("infoDistancia").innerText.replace("Distancia: ","")
     };
 
-    if(!pedido.origen || !pedido.destino || pedido.origen === "" || pedido.destino === "") {
-        alert("Por favor, ingresa origen y destino.");
-        btn.disabled = false;
-        btn.innerText = "SOLICITAR AHORA";
-        btn.style.opacity = "1";
+    if(!pedido.origen || !pedido.destino) {
+        alert("Ingresa origen y destino."); btn.disabled = false; btn.innerText = "SOLICITAR AHORA"; btn.style.opacity = "1";
         return;
     }
 
@@ -386,10 +383,7 @@ async function pedirViaje() {
             }
         }, 3000);
     }).catch(err => {
-        alert("Error al conectar con el servidor. Intenta de nuevo.");
-        btn.disabled = false;
-        btn.innerText = "SOLICITAR AHORA";
-        btn.style.opacity = "1";
+        alert("Error de conexión."); btn.disabled = false; btn.innerText = "SOLICITAR AHORA"; btn.style.opacity = "1";
     });
 }
 
@@ -408,36 +402,21 @@ function iniciarModoSeguimiento() {
             const resV = await fetch('/obtener-viajes');
             const viajes = await resV.json();
             const miV = viajes.find(v => v._id === idViaje);
-
             if (!miV || miV.estado === "finalizado" || miV.estado === "terminado" || miV.estado === "cancelado") {
                 clearInterval(rastreo);
                 document.getElementById("panelSeguimiento").style.display = "none";
-                if(miV && (miV.estado === "finalizado" || miV.estado === "terminado")) {
-                    document.getElementById("modalPuntaje").style.display = "flex";
-                } else {
-                    location.reload();
-                }
+                if(miV && (miV.estado === "finalizado" || miV.estado === "terminado")) document.getElementById("modalPuntaje").style.display = "flex";
+                else location.reload();
                 return;
             }
-
             const r = await fetch("/obtener-choferes-activos"); 
             const choferes = await r.json();
             const c = choferes.find(x => x.telefono === viajeInfo.choferTel);
             if(c) {
                 const posChofer = { lat: Number(c.lat), lng: Number(c.lng) };
                 if(!markerC) {
-                    markerC = new google.maps.Marker({ 
-                        position: posChofer, 
-                        map: map, 
-                        icon:{ 
-                            url: "/file_000000008fd0720eb71af76359ccb359.png", 
-                            scaledSize: new google.maps.Size(40, 40),
-                            anchor: new google.maps.Point(20, 20)
-                        } 
-                    });
-                } else { 
-                    markerC.setPosition(posChofer);
-                }
+                    markerC = new google.maps.Marker({ position: posChofer, map: map, icon:{ url: "/file_000000008fd0720eb71af76359ccb359.png", scaledSize: new google.maps.Size(40, 40), anchor: new google.maps.Point(20, 20) } });
+                } else markerC.setPosition(posChofer);
                 directionsService.route({ origin: posChofer, destination: miV.destino, travelMode: 'DRIVING' }, (res, stat) => {
                     if(stat === 'OK') directionsRenderer.setDirections(res);
                 });
