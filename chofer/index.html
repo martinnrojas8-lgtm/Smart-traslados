@@ -125,7 +125,7 @@
 
 <video id="keepAliveVideo" loop muted playsinline style="position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&libraries=geometry"></script>
 <script>
 const socket = io();
 let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
@@ -327,7 +327,14 @@ function iniciarReloj(vencimiento) {
 function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
         const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        map = new google.maps.Map(document.getElementById("map"), { center: myPos, zoom: 17, disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] } ] });
+        map = new google.maps.Map(document.getElementById("map"), { 
+            center: myPos, 
+            zoom: 18, 
+            disableDefaultUI: true,
+            tilt: 45,
+            heading: pos.coords.heading || 0,
+            styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] } ] 
+        });
         marker = new google.maps.Marker({ position: myPos, map: map, icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
         directionsService = new google.maps.DirectionsService(); 
         directionsRenderer = new google.maps.DirectionsRenderer({ map: map, preserveViewport: true });
@@ -343,6 +350,13 @@ function transmitirUbicacion() {
         fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, heading: heading, estado: estadoActual }) });
         
         if(marker) { marker.setPosition(coords); }
+        
+        if(map) {
+            map.panTo(coords);
+            if (heading !== null && heading !== undefined) {
+                map.setHeading(heading);
+            }
+        }
 
         if(viajeActualId) { 
             if (ultimaPosicionMapa) {
@@ -351,13 +365,11 @@ function transmitirUbicacion() {
                 const distancia = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
                 
                 if (distancia > 12) {
-                    map.panTo(coords);
-                    if (map.getZoom() < 17) map.setZoom(17);
+                    if (map.getZoom() < 18) map.setZoom(18);
                     ultimaPosicionMapa = coords;
                 }
             } else {
-                map.panTo(coords);
-                map.setZoom(17);
+                map.setZoom(18);
                 ultimaPosicionMapa = coords;
             }
             trazarRuta(ultimaRutaDestino); 
