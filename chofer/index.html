@@ -138,13 +138,23 @@ let ultimaPosicionMapa = null;
 
 // --- MOTOR DE VOZ SMART ---
 let ultimaInstruccionDada = "";
+let ultimoPasoId = ""; 
+
 function hablar(texto) {
     if (!texto || texto === ultimaInstruccionDada) return;
-    ultimaInstruccionDada = texto;
-    const mensaje = new SpeechSynthesisUtterance(texto);
-    mensaje.lang = 'es-AR'; // Español Argentina
-    mensaje.rate = 1.0;
-    window.speechSynthesis.speak(mensaje);
+    
+    // Cancela cualquier audio pendiente para evitar atrasos
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+
+    setTimeout(() => {
+        ultimaInstruccionDada = texto;
+        const mensaje = new SpeechSynthesisUtterance(texto);
+        mensaje.lang = 'es-AR';
+        mensaje.rate = 1.1; // Ligeramente más rápido para mayor agilidad
+        window.speechSynthesis.speak(mensaje);
+    }, 50);
 }
 
 function activarKeepAlive() {
@@ -221,7 +231,6 @@ function actualizarUIFase() {
 
 function activarYToggle() {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         hablar("Iniciando Smart Chofer. ¡Buen viaje!");
     } catch (e) {}
     activarKeepAlive(); 
@@ -465,15 +474,17 @@ function trazarRuta(destino) {
             if (status === 'OK') {
                 directionsRenderer.setDirections(result);
                 
-                // --- LÓGICA DE VOZ PARA INSTRUCCIONES ---
                 const route = result.routes[0].legs[0];
-                const step = route.steps[0]; // Tomamos el primer paso de la lista
-                
+                const step = route.steps[0]; 
+
                 if (step) {
-                    // Limpiamos el texto de Google (que viene con HTML)
                     let instruccionLimpia = step.instructions.replace(/<[^>]*>?/gm, '');
-                    // Solo hablamos si estamos cerca del giro (ej. menos de 300 metros)
-                    if (step.distance.value < 300) {
+                    // ID único para el giro actual basado en coordenadas
+                    let pasoActualId = step.start_location.lat().toFixed(4) + "," + step.start_location.lng().toFixed(4);
+                    
+                    // Solo habla si estamos a < 250m y es un giro que no avisamos todavía
+                    if (step.distance.value < 250 && ultimoPasoId !== pasoActualId) {
+                        ultimoPasoId = pasoActualId; 
                         hablar("En " + step.distance.text + ", " + instruccionLimpia);
                     }
                 }
