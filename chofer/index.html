@@ -125,7 +125,7 @@
 
 <video id="keepAliveVideo" loop muted playsinline style="position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY&libraries=geometry"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8zZaje1NKai0k2MxuQvQVW6vrRdfUIrY"></script>
 <script>
 const socket = io();
 let sesion = JSON.parse(localStorage.getItem("sesion") || "{}");
@@ -134,28 +134,7 @@ let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; let faseViaje = 1; let audioInterval;
 let infoPrecioFinal = ""; let infoDistanciaFinal = ""; let monitorCancelacion = null; let currentRatingChofer = 0;
 let pasajeroTelActual = null;
-let ultimaPosicionMapa = null; 
-
-// --- MOTOR DE VOZ SMART ---
-let ultimaInstruccionDada = "";
-let ultimoPasoId = ""; 
-
-function hablar(texto) {
-    if (!texto || texto === ultimaInstruccionDada) return;
-    
-    // Cancela cualquier audio pendiente para evitar atrasos
-    if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-    }
-
-    setTimeout(() => {
-        ultimaInstruccionDada = texto;
-        const mensaje = new SpeechSynthesisUtterance(texto);
-        mensaje.lang = 'es-AR';
-        mensaje.rate = 1.1; // Ligeramente más rápido para mayor agilidad
-        window.speechSynthesis.speak(mensaje);
-    }, 50);
-}
+let ultimaPosicionMapa = null; // Para control de salto de GPS
 
 function activarKeepAlive() {
     const video = document.getElementById('keepAliveVideo');
@@ -231,7 +210,13 @@ function actualizarUIFase() {
 
 function activarYToggle() {
     try {
-        hablar("Iniciando Smart Chofer. ¡Buen viaje!");
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0; 
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
     } catch (e) {}
     activarKeepAlive(); 
     toggleEstado();
@@ -247,7 +232,6 @@ function setRatingChofer(n) {
 
 async function finalizarViaje() {
     if (!viajeActualId) return;
-    hablar("Viaje completado. No olvides cobrar " + infoPrecioFinal);
     document.getElementById("montoFinalModal").innerText = infoPrecioFinal;
     document.getElementById("distanciaFinalModal").innerText = infoDistanciaFinal;
     document.getElementById("modalFinalizarViaje").style.display = "flex";
@@ -278,19 +262,13 @@ async function chequearMensajesAdmin() {
         const res = await fetch('/obtener-ultimo-mensaje/choferes'); const data = await res.json();
         if (!data || !data.texto || data.texto.trim() === "") return;
         const firmaTexto = btoa(data.texto.trim()).substring(0, 24);
-        if (!localStorage.getItem('visto_msg_' + firmaTexto)) { 
-            document.getElementById('txtNovedad').innerText = data.texto; 
-            document.getElementById('modalNovedad').style.display = 'flex'; 
-            localStorage.setItem('visto_msg_' + firmaTexto, 'visto');
-            hablar("Atención, ha recibido un comunicado de la administración.");
-        }
+        if (!localStorage.getItem('visto_msg_' + firmaTexto)) { document.getElementById('txtNovedad').innerText = data.texto; document.getElementById('modalNovedad').style.display = 'flex'; localStorage.setItem('visto_msg_' + firmaTexto, 'visto'); }
     } catch (e) {}
 }
 
 function marcarMensajeComoLeido() { document.getElementById('modalNovedad').style.display = 'none'; }
 
 function sonarAlerta() {
-    hablar("¡Atención! Nuevo viaje disponible.");
     const context = new (window.AudioContext || window.webkitAudioContext)();
     audioInterval = setInterval(() => {
         const osc = context.createOscillator(); const gain = context.createGain();
@@ -298,7 +276,7 @@ function sonarAlerta() {
         osc.type = 'square'; osc.frequency.setValueAtTime(880, context.currentTime);
         gain.gain.setValueAtTime(0.1, context.currentTime);
         osc.start(); osc.stop(context.currentTime + 0.2);
-    }, 1000);
+    }, 500);
 }
 
 function detenerAlerta() { clearInterval(audioInterval); }
@@ -331,7 +309,7 @@ async function validarCodigo() {
     const cod = document.getElementById('inputToken').value.trim();
     try {
         const res = await fetch('/validar-token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ codigo: cod, telefono: sesion.telefono }) });
-        const data = await res.json(); if(data.ok) { hablar("Cuenta activada. ¡Bienvenido!"); location.reload(); } else alert(data.mensaje || "Inválido");
+        const data = await res.json(); if(data.ok) location.reload(); else alert(data.mensaje || "Inválido");
     } catch (e) { alert("Error de conexión"); }
 }
 
@@ -409,6 +387,7 @@ setInterval(async () => {
             infoDistanciaFinal = v.distancia || "0 km";
             pasajeroTelActual = v.pasajeroTel;
             
+            // AJUSTE: Visualización de Parada si existe
             let textoParada = v.parada ? `<br><span style="color:#000; background:#fff; padding:2px 5px; border-radius:4px; font-size:12px;">PARADA: ${v.parada}</span>` : "";
             
             document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}${textoParada}`;
@@ -438,7 +417,6 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
             faseViaje = 1; 
             actualizarUIFase();
             ultimaRutaDestino = direccionOrigenViaje;
-            hablar("Viaje aceptado. Diríjase a " + direccionOrigenViaje);
             trazarRuta(direccionOrigenViaje);
             guardarProgresoViaje();
         } else { location.reload(); }
@@ -450,11 +428,11 @@ function gestionarFaseViaje() {
     if (faseViaje === 1) {
         faseViaje = 2;
         ultimaRutaDestino = direccionDestinoViaje;
-        hablar("Pasajero a bordo. Iniciando recorrido hacia " + direccionDestinoViaje);
         trazarRuta(direccionDestinoViaje);
     } else if (faseViaje === 2) {
         faseViaje = 3;
     } else if (faseViaje === 3) { 
+        // AJUSTE: Antes de abrir el modal, nos aseguramos que los KM estén cargados
         document.getElementById("distanciaFinalModal").innerText = infoDistanciaFinal;
         finalizarViaje(); 
         return; 
@@ -466,28 +444,9 @@ function gestionarFaseViaje() {
 function trazarRuta(destino) {
     if(!destino) return;
     navigator.geolocation.getCurrentPosition(pos => {
-        directionsService.route({ 
-            origin: { lat: pos.coords.latitude, lng: pos.coords.longitude }, 
-            destination: destino, 
-            travelMode: 'DRIVING' 
-        }, (result, status) => { 
+        directionsService.route({ origin: { lat: pos.coords.latitude, lng: pos.coords.longitude }, destination: destino, travelMode: 'DRIVING' }, (result, status) => { 
             if (status === 'OK') {
                 directionsRenderer.setDirections(result);
-                
-                const route = result.routes[0].legs[0];
-                const step = route.steps[0]; 
-
-                if (step) {
-                    let instruccionLimpia = step.instructions.replace(/<[^>]*>?/gm, '');
-                    // ID único para el giro actual basado en coordenadas
-                    let pasoActualId = step.start_location.lat().toFixed(4) + "," + step.start_location.lng().toFixed(4);
-                    
-                    // Solo habla si estamos a < 250m y es un giro que no avisamos todavía
-                    if (step.distance.value < 250 && ultimoPasoId !== pasoActualId) {
-                        ultimoPasoId = pasoActualId; 
-                        hablar("En " + step.distance.text + ", " + instruccionLimpia);
-                    }
-                }
             } 
         });
     }, null, { enableHighAccuracy: true });
