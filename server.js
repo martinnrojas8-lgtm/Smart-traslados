@@ -16,9 +16,9 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- CONFIGURACIÓN TELEGRAM ---
-const TELEGRAM_TOKEN = '8579157525:AAF15oAwFpQWbcjcGDWRX6drcxhwN1l3GGE';
-const TELEGRAM_CHAT_ID = '-5185887027';
+// --- CONFIGURACIÓN TELEGRAM (ACTUALIZADA) ---
+const TELEGRAM_TOKEN = '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
+const TELEGRAM_CHAT_ID = '6362924370';
 
 // --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
