@@ -16,9 +16,9 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- CONFIGURACIÓN TELEGRAM (ACTUALIZADA) ---
+// --- CONFIGURACIÓN TELEGRAM (CON SIGNO NEGATIVO PARA GRUPOS) ---
 const TELEGRAM_TOKEN = '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
-const TELEGRAM_CHAT_ID = '6362924370';
+const TELEGRAM_CHAT_ID = '-6362924370';
 
 // --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
@@ -33,7 +33,7 @@ const UsuarioSchema = new mongoose.Schema({
     rol: String,
     nombre: String,
     foto: String,
-    fotoPerfil: String, // Campo extra para asegurar compatibilidad
+    fotoPerfil: String, 
     autoModelo: String,
     autoPatente: String,
     autoColor: String,
@@ -313,7 +313,6 @@ app.get('/obtener-usuarios', async (req, res) => {
     } catch (e) { res.status(500).send(e); }
 });
 
-// --- RUTA ACTUALIZAR PERFIL CHOFER (MEJORADA) ---
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
@@ -331,7 +330,6 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
             estadoRevision: 'pendiente' 
         };
 
-        // Eliminar valores undefined para no pisar datos con nulos
         Object.keys(actualizacion).forEach(key => actualizacion[key] === undefined && delete actualizacion[key]);
 
         await Usuario.findOneAndUpdate(
