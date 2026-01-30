@@ -374,6 +374,7 @@ function toggleEstado() {
 }
 
 setInterval(async () => {
+    // PUNTO 2: Bloqueo de nuevos viajes si ya está en viaje (estadoActual !== "disponible")
     if (estadoActual !== "disponible" || !pagoConfirmado || viajeActualId || document.getElementById("modalViaje").style.display === "flex") return;
     try {
         const res = await fetch('/viajes-pendientes'); const viajes = await res.json();
@@ -387,7 +388,6 @@ setInterval(async () => {
             infoDistanciaFinal = v.distancia || "0 km";
             pasajeroTelActual = v.pasajeroTel;
             
-            // AJUSTE: Visualización de Parada si existe
             let textoParada = v.parada ? `<br><span style="color:#000; background:#fff; padding:2px 5px; border-radius:4px; font-size:12px;">PARADA: ${v.parada}</span>` : "";
             
             document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}${textoParada}`;
@@ -419,7 +419,11 @@ document.getElementById('btnAceptarViaje').onclick = async function() {
             ultimaRutaDestino = direccionOrigenViaje;
             trazarRuta(direccionOrigenViaje);
             guardarProgresoViaje();
-        } else { location.reload(); }
+        } else { 
+            // PUNTO 1: Cartel de aviso antes de refrescar para quitar confusión
+            alert("ESTE VIAJE YA FUE ACEPTADO POR OTRO CHOFER");
+            location.reload(); 
+        }
     } catch (e) { location.reload(); }
 };
 
@@ -432,7 +436,6 @@ function gestionarFaseViaje() {
     } else if (faseViaje === 2) {
         faseViaje = 3;
     } else if (faseViaje === 3) { 
-        // AJUSTE: Antes de abrir el modal, nos aseguramos que los KM estén cargados
         document.getElementById("distanciaFinalModal").innerText = infoDistanciaFinal;
         finalizarViaje(); 
         return; 
@@ -452,7 +455,16 @@ function trazarRuta(destino) {
     }, null, { enableHighAccuracy: true });
 }
 
-async function rechazarViaje() { detenerAlerta(); let rechazados = JSON.parse(localStorage.getItem('viajes_rechazados') || "[]"); rechazados.push(viajeActualId); localStorage.setItem('viajes_rechazados', JSON.stringify(rechazados)); await fetch('/rechazar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId }) }); document.getElementById("modalViaje").style.display = "none"; viajeActualId = null; }
+async function rechazarViaje() { 
+    // PUNTO 3: Se mantiene la lógica de rechazo para que siga cayendo en otros dispositivos
+    detenerAlerta(); 
+    let rechazados = JSON.parse(localStorage.getItem('viajes_rechazados') || "[]"); 
+    rechazados.push(viajeActualId); 
+    localStorage.setItem('viajes_rechazados', JSON.stringify(rechazados)); 
+    await fetch('/rechazar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ viajeId: viajeActualId }) }); 
+    document.getElementById("modalViaje").style.display = "none"; 
+    viajeActualId = null; 
+}
 function cerrarSesion() { if(confirm("¿Cerrar?")) { socket.disconnect(); localStorage.clear(); location.href = "/"; } }
 window.onload = initApp;
 </script>
