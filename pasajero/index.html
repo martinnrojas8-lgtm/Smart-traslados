@@ -101,7 +101,6 @@
   <div id="estadoEspera" style="display:none; text-align: center;">
       <div class="price-box">BUSCANDO CHOFER...</div>
       <div style="width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #00c853; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto;"></div>
-      <button onclick="cancelarViajePasajero()" style="background:#ff5252; color:#fff; margin-top:10px; width: auto; padding: 10px 20px;">CANCELAR PEDIDO</button>
   </div>
 </div>
 
@@ -134,7 +133,6 @@ let map, directionsService, directionsRenderer, markerC, idViaje, viajeInfo, ult
 let paradasCount = 0;
 let marcadoresChoferes = {};
 let currentRating = 0;
-let monitorBusqueda = null;
 
 // Configuración de zona Saladillo (Radio 40km)
 const centroSaladillo = { lat: -35.638, lng: -59.779 };
@@ -171,6 +169,7 @@ async function initApp() {
 
     if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p => {
         const pos = { lat: p.coords.latitude, lng: p.coords.longitude }; 
+        // Solo centrar si está cerca de Saladillo, sino dejar centro por defecto
         if(calcularDistanciaFisica(centroSaladillo.lat, centroSaladillo.lng, pos.lat, pos.lng) < 50) {
             map.setCenter(pos);
         }
@@ -182,38 +181,6 @@ async function initApp() {
     setInterval(mostrarChoferesCercanos, 5000);
     setInterval(chequearMensajesAdmin, 15000);
     chequearMensajesAdmin(); 
-
-    // NUEVO: Recuperar viaje si ya había uno pedido
-    setTimeout(recuperarEstadoPasajero, 1500);
-}
-
-function guardarEstadoPasajero(id) {
-    localStorage.setItem("viaje_pedido_id", id);
-}
-
-async function recuperarEstadoPasajero() {
-    const idGuardado = localStorage.getItem("viaje_pedido_id");
-    if (!idGuardado) return;
-
-    try {
-        const resV = await fetch('/obtener-viajes');
-        const viajes = await resV.json();
-        const miV = viajes.find(v => v._id === idGuardado);
-
-        if (miV) {
-            idViaje = miV._id;
-            viajeInfo = miV;
-            if (miV.estado === "pendiente") {
-                document.getElementById("cardPedido").style.display="none"; 
-                document.getElementById("estadoEspera").style.display="block";
-                iniciarMonitoreoAceptacion();
-            } else if (miV.estado === "aceptado") {
-                iniciarModoSeguimiento();
-            }
-        } else {
-            localStorage.removeItem("viaje_pedido_id");
-        }
-    } catch(e) { }
 }
 
 function calcularDistanciaFisica(lat1, lon1, lat2, lon2) {
@@ -243,7 +210,6 @@ async function enviarCalificacion() {
             body: JSON.stringify({ viajeId: idViaje, choferTel: viajeInfo.choferTel, estrellas: currentRating })
         });
     } catch(e) { }
-    localStorage.removeItem("viaje_pedido_id");
     location.reload();
 }
 
@@ -297,7 +263,6 @@ async function cancelarViajePasajero() {
     if(!confirm("¿Seguro que deseas cancelar el viaje?")) return;
     try {
         await fetch('/eliminar-viaje', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: idViaje }) });
-        localStorage.removeItem("viaje_pedido_id");
         location.reload();
     } catch (e) { location.reload(); }
 }
@@ -353,6 +318,7 @@ async function pedirViaje() {
     const btn = document.getElementById("btnPedir");
     btn.disabled = true; btn.innerText = "VALIDANDO UBICACIÓN..."; btn.style.opacity = "0.6";
 
+    // Bloqueo de zona 40km
     const geocoder = new google.maps.Geocoder();
     const origenTexto = document.getElementById("origen").value;
     try {
@@ -368,7 +334,7 @@ async function pedirViaje() {
             btn.disabled = false; btn.innerText = "SOLICITAR AHORA"; btn.style.opacity = "1";
             return;
         }
-    } catch (e) { }
+    } catch (e) { console.log("Error de zona"); }
 
     try {
         const resU = await fetch('/obtener-usuarios');
@@ -402,35 +368,28 @@ async function pedirViaje() {
     fetch("/solicitar-viaje", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(pedido) })
     .then(r => r.json()).then(data => {
         idViaje = data.id; 
-        guardarEstadoPasajero(idViaje); // GUARDAMOS EN MEMORIA
         document.getElementById("cardPedido").style.display="none"; 
         document.getElementById("estadoEspera").style.display="block";
-        iniciarMonitoreoAceptacion();
+        const mon = setInterval(async () => {
+            const resV = await fetch('/obtener-viajes'); 
+            const viajes = await resV.json();
+            const miV = viajes.find(v => v._id === idViaje);
+            if(miV && miV.estado === "aceptado") { 
+                clearInterval(mon); 
+                viajeInfo = miV; 
+                document.getElementById("infoChoferM").innerText = miV.chofer; 
+                document.getElementById("infoAutoM").innerText = `${miV.autoModelo} - ${miV.autoPatente}`; 
+                document.getElementById("modalConfirmacion").style.display="flex"; 
+            }
+        }, 3000);
     }).catch(err => {
         alert("Error de conexión."); btn.disabled = false; btn.innerText = "SOLICITAR AHORA"; btn.style.opacity = "1";
     });
 }
 
-function iniciarMonitoreoAceptacion() {
-    if (monitorBusqueda) clearInterval(monitorBusqueda);
-    monitorBusqueda = setInterval(async () => {
-        const resV = await fetch('/obtener-viajes'); 
-        const viajes = await resV.json();
-        const miV = viajes.find(v => v._id === idViaje);
-        if(miV && miV.estado === "aceptado") { 
-            clearInterval(monitorBusqueda); 
-            viajeInfo = miV; 
-            document.getElementById("infoChoferM").innerText = miV.chofer; 
-            document.getElementById("infoAutoM").innerText = `${miV.autoModelo} - ${miV.autoPatente}`; 
-            document.getElementById("modalConfirmacion").style.display="flex"; 
-        }
-    }, 3000);
-}
-
 function iniciarModoSeguimiento() {
     document.getElementById("modalConfirmacion").style.display="none"; 
     document.getElementById("estadoEspera").style.display="none"; 
-    document.getElementById("cardPedido").style.display="none"; 
     document.getElementById("panelSeguimiento").style.display="block";
     document.getElementById("txtC").innerText = viajeInfo.chofer; 
     document.getElementById("txtA").innerText = `${viajeInfo.autoModelo} (${viajeInfo.autoColor}) • ${viajeInfo.autoPatente}`;
@@ -446,12 +405,8 @@ function iniciarModoSeguimiento() {
             if (!miV || miV.estado === "finalizado" || miV.estado === "terminado" || miV.estado === "cancelado") {
                 clearInterval(rastreo);
                 document.getElementById("panelSeguimiento").style.display = "none";
-                if(miV && (miV.estado === "finalizado" || miV.estado === "terminado")) {
-                    document.getElementById("modalPuntaje").style.display = "flex";
-                } else {
-                    localStorage.removeItem("viaje_pedido_id");
-                    location.reload();
-                }
+                if(miV && (miV.estado === "finalizado" || miV.estado === "terminado")) document.getElementById("modalPuntaje").style.display = "flex";
+                else location.reload();
                 return;
             }
             const r = await fetch("/obtener-choferes-activos"); 
