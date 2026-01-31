@@ -177,22 +177,38 @@ app.get('/obtener-ultimo-mensaje/:rol', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al obtener mensaje" }); }
 });
 
+// --- RUTA MODIFICADA: BLINDAJE DE PRECIO (PUNTO 14) ---
 app.post('/solicitar-viaje', async (req, res) => {
     try {
         const d = req.body;
+
+        // Obtenemos las tarifas oficiales del servidor
+        const tarifas = await Tarifa.findOne() || { precioBase: 3500, precioKm: 900 };
+        
+        // Limpiamos la distancia (por si viene como "5.2 km")
+        const distanciaNum = parseFloat(d.distancia.replace(/[^\d.]/g, '')) || 0;
+        
+        // El servidor impone su propio cálculo
+        const precioCalculado = tarifas.precioBase + (distanciaNum * tarifas.precioKm);
+        const precioFinalString = `$${Math.round(precioCalculado)}`; 
+
         const nuevoViaje = new Viaje({
             pasajero: d.pasajeroNombre,
             pasajeroTel: d.pasajeroTel,
             origen: d.origen,
             destino: d.destino,
-            precio: d.precio,
+            precio: precioFinalString, // Usamos el precio blindado
             distancia: d.distancia,
             estado: "pendiente"
         });
+
         await nuevoViaje.save();
         enviarNotificacionTelegram(nuevoViaje);
         res.json({ mensaje: "Viaje solicitado con éxito", id: nuevoViaje._id });
-    } catch (e) { res.status(500).json({ error: "Error al solicitar viaje" }); }
+    } catch (e) { 
+        console.error("Error en solicitar-viaje:", e);
+        res.status(500).json({ error: "Error al solicitar viaje" }); 
+    }
 });
 
 app.get('/viajes-pendientes', async (req, res) => {
@@ -265,7 +281,8 @@ app.post('/eliminar-usuario', async (req, res) => {
 
 app.post('/bloquear-usuario', async (req, res) => {
     try {
-        await Usuario.findOneAndUpdate({ telefono: req.body.telefono }, { bloqueado: req.body.bloqueado });
+        const { telefono, bloqueado } = req.body;
+        await Usuario.findOneAndUpdate({ telefono }, { bloqueado });
         res.json({ mensaje: "Ok" });
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
@@ -328,9 +345,8 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
 
-        // --- RETOQUE DE SEGURIDAD (PUNTO 5 DE AUDITORÍA) ---
         if (!d.nombre || !d.autoModelo || !d.autoPatente) {
-            return res.status(400).json({ error: "Faltan datos obligatorios: Nombre, Modelo o Patente." });
+            return res.status(400).json({ error: "Faltan datos obligatorios." });
         }
 
         const actualizacion = {
@@ -408,7 +424,6 @@ app.post('/actualizar-ubicacion-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error GPS" }); }
 });
 
-// Ruta protegida
 app.get('/admin-panel', verificarAdmin, (req, res) => { 
     res.sendFile(path.join(__dirname, 'admin', 'index-admin.html')); 
 });
