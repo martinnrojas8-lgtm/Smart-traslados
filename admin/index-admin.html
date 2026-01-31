@@ -103,7 +103,18 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
 
 <div id="pagos" class="pantalla">
     <div class="card" style="text-align:center;">
-        <h3>Generar Pin de Activación 24hs</h3>
+        <h3>Generar Pin de Activación</h3>
+        
+        <div style="margin: 15px auto; max-width: 250px;">
+            <label style="font-size: 13px; color: #aaa;">Seleccionar duración:</label>
+            <select id="selectDuracionPin" style="width: 100%; text-align: center;">
+                <option value="6">6 Horas (Especial Fiesta)</option>
+                <option value="12">12 Horas</option>
+                <option value="24" selected>24 Horas (Estándar)</option>
+                <option value="168">7 Días (Semanal)</option>
+            </select>
+        </div>
+
         <button class="btn-ok" onclick="generarNuevoCodigo()">GENERAR NUEVO CÓDIGO</button>
         
         <div id="contenedorFicha" style="position: relative; display: none; flex-direction: column; align-items: center; background: #fff; padding: 25px; border-radius: 15px; max-width: 300px; margin: 25px auto; color: #000; text-align: center; border: 3px solid #4caf50; box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
@@ -117,7 +128,7 @@ th, td{ padding:10px; border-bottom:1px solid #333; text-align:left; font-size:1
             <div style="font-size: 12px; color: #666; font-weight: bold; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #ddd; width: 100%; padding-bottom: 10px;">VOUCHER DE ACTIVACIÓN</div>
             <div style="font-size: 11px; color: #333; margin-bottom: 5px;">CÓDIGO DE ACCESO:</div>
             <div id="txtFichaCodigo" class="ficha-codigo">000000</div>
-            <div style="font-size: 12px; color: #000; font-weight: bold; margin-top: 15px; background: #e8f5e9; padding: 5px 10px; border-radius: 5px;">VÁLIDO POR 24 HORAS</div>
+            <div id="txtFichaValidez" style="font-size: 12px; color: #000; font-weight: bold; margin-top: 15px; background: #e8f5e9; padding: 5px 10px; border-radius: 5px;">VÁLIDO POR 24 HORAS</div>
             <div style="font-size: 10px; color: #999; margin-top: 15px;">Smart Traslados - El control en tus manos.</div>
         </div>
     </div>
@@ -243,7 +254,6 @@ async function cargarViajesReales() {
             const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
             let estrellasTxt = v.estrellasPasajero && v.estrellasPasajero > 0 ? v.estrellasPasajero + " ⭐" : "-";
             
-            // AGREGADO ÚNICAMENTE: Botón Finalizar (solo si no está finalizado/cancelado)
             let btnFinalizar = (v.estado !== "finalizado" && v.estado !== "cancelado") 
                 ? `<button class="btn-accion" style="background:#2e7d32;" onclick="finalizarViajeAdmin('${v._id}', '${v.precio}')">✅</button>` 
                 : '';
@@ -395,25 +405,43 @@ async function guardarConfiguracion() {
 
 async function generarNuevoCodigo() {
     const nuevoCod = Math.floor(100000 + Math.random() * 900000).toString();
+    const duracion = document.getElementById('selectDuracionPin').value;
+    
     try {
-        const res = await fetch('/crear-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: nuevoCod }) });
-        if(res.ok) { document.getElementById('txtFichaCodigo').innerText = nuevoCod; document.getElementById('contenedorFicha').style.display = 'flex'; }
-    } catch (e) {}
+        // Modificado para enviar duración al servidor
+        const res = await fetch('/crear-token', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ codigo: nuevoCod, horas: parseInt(duracion) }) 
+        });
+        if(res.ok) { 
+            document.getElementById('txtFichaCodigo').innerText = nuevoCod; 
+            
+            // Actualizar texto de validez en la ficha
+            let txtValidez = duracion + " HORAS";
+            if(duracion === "168") txtValidez = "7 DÍAS";
+            document.getElementById('txtFichaValidez').innerText = "VÁLIDO POR " + txtValidez;
+            
+            document.getElementById('contenedorFicha').style.display = 'flex'; 
+        }
+    } catch (e) { alert("Error al generar el PIN"); }
 }
 
 async function compartirCodigo() {
     const elemento = document.getElementById('contenedorFicha');
     const btnShare = document.getElementById('botonShareContainer');
     const codigo = document.getElementById('txtFichaCodigo').innerText;
+    const validez = document.getElementById('txtFichaValidez').innerText;
+    
     btnShare.classList.add('ignore-capture');
     html2canvas(elemento, { backgroundColor: null, useCORS: true, scale: 2 }).then(async canvas => {
         btnShare.classList.remove('ignore-capture');
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], `voucher-${codigo}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ files: [file], title: 'Voucher Smart Traslados', text: `🚗 *SMART TRASLADOS*\nCódigo: *${codigo}*` }); } catch (e) {}
+            try { await navigator.share({ files: [file], title: 'Voucher Smart Traslados', text: `🚗 *SMART TRASLADOS*\nCódigo: *${codigo}*\n${validez}` }); } catch (e) {}
         } else {
-            const texto = `🚗 *SMART TRASLADOS*\n\nHola! Tu código de acceso es: *${codigo}*\n\nVálido por 24 horas.`;
+            const texto = `🚗 *SMART TRASLADOS*\n\nHola! Tu código de acceso es: *${codigo}*\n\n${validez}.`;
             window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
         }
     });
