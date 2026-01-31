@@ -16,11 +16,11 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- CONFIGURACIÓN SEGURA (PUNTO 1 Y 2 DE AUDITORÍA) ---
+// --- CONFIGURACIÓN SEGURA ---
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
 const TELEGRAM_CHAT_ID = '-1003837989085';
 
-// --- CONEXIÓN A MONGODB SEGURA ---
+// --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
@@ -109,7 +109,7 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.model('Config', ConfigSchema);
 
-// --- PROTECCIÓN DE ADMIN (PUNTO 16) ---
+// --- PROTECCIÓN DE ADMIN ---
 const ADMIN_PASSWORD = "smart2026"; 
 
 const verificarAdmin = (req, res, next) => {
@@ -124,7 +124,7 @@ const verificarAdmin = (req, res, next) => {
 // --- LÓGICA DE SOCKETS ---
 io.on('connection', (socket) => {
     socket.on('registrar-chofer', async (telefono) => {
-        await Ubicacion.findOneAndUpdate({ telefono }, { socketId: socket.id });
+        await Ubicacion.findOneAndUpdate({ telefono }, { socketId: socket.id }, { upsert: true });
     });
 
     socket.on('disconnect', async () => {
@@ -177,19 +177,32 @@ app.get('/obtener-ultimo-mensaje/:rol', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al obtener mensaje" }); }
 });
 
-// --- RUTA MODIFICADA: BLINDAJE DE PRECIO (PUNTO 14) ---
+// --- RUTA SOLICITAR VIAJE CON TABLA DE PRECIOS BLINDADA ---
 app.post('/solicitar-viaje', async (req, res) => {
     try {
         const d = req.body;
 
-        // Obtenemos las tarifas oficiales del servidor
-        const tarifas = await Tarifa.findOne() || { precioBase: 3500, precioKm: 900 };
-        
         // Limpiamos la distancia (por si viene como "5.2 km")
-        const distanciaNum = parseFloat(d.distancia.replace(/[^\d.]/g, '')) || 0;
+        const dist = parseFloat(d.distancia.replace(/[^\d.]/g, '')) || 0;
         
-        // El servidor impone su propio cálculo
-        const precioCalculado = tarifas.precioBase + (distanciaNum * tarifas.precioKm);
+        // Obtenemos tarifa por KM de la BD (por defecto 900)
+        const tarifasBD = await Tarifa.findOne() || { precioKm: 900 };
+        const precioKmFinal = tarifasBD.precioKm || 900;
+
+        let precioCalculado = 0;
+
+        // --- LÓGICA DE TABLA PACTADA CON CHOFERES ---
+        if (dist <= 3) {
+            precioCalculado = 3500;
+        } else if (dist > 3 && dist <= 3.5) {
+            precioCalculated = 4000;
+        } else if (dist > 3.5 && dist <= 5) {
+            precioCalculado = 4500;
+        } else {
+            // De 5km en adelante, precio por KM puro
+            precioCalculado = dist * precioKmFinal;
+        }
+
         const precioFinalString = `$${Math.round(precioCalculado)}`; 
 
         const nuevoViaje = new Viaje({
@@ -197,7 +210,7 @@ app.post('/solicitar-viaje', async (req, res) => {
             pasajeroTel: d.pasajeroTel,
             origen: d.origen,
             destino: d.destino,
-            precio: precioFinalString, // Usamos el precio blindado
+            precio: precioFinalString, 
             distancia: d.distancia,
             estado: "pendiente"
         });
@@ -318,16 +331,12 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-// --- RUTA MODIFICADA: VALIDACIÓN DE NOMBRE (PUNTO 5) ---
 app.post('/register', async (req, res) => {
     try {
         const { telefono, rol, nombre } = req.body; 
-
-        // Validación rápida: nombre obligatorio y mínimo 3 caracteres
         if (!nombre || nombre.trim().length < 3) {
             return res.status(400).json({ mensaje: "El nombre debe tener al menos 3 letras." });
         }
-
         const existe = await Usuario.findOne({ telefono });
         if(existe) {
             if (existe.bloqueado) return res.status(403).json({ mensaje: "Número bloqueado" });
@@ -355,11 +364,9 @@ app.get('/obtener-usuarios', async (req, res) => {
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
-
         if (!d.nombre || !d.autoModelo || !d.autoPatente) {
             return res.status(400).json({ error: "Faltan datos obligatorios." });
         }
-
         const actualizacion = {
             nombre: d.nombre,
             autoModelo: d.autoModelo || d.modelo,
@@ -373,14 +380,8 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
             rol: 'chofer',
             estadoRevision: 'pendiente' 
         };
-
         Object.keys(actualizacion).forEach(key => actualizacion[key] === undefined && delete actualizacion[key]);
-
-        await Usuario.findOneAndUpdate(
-            { telefono: d.telefono }, 
-            { $set: actualizacion }, 
-            { upsert: true }
-        );
+        await Usuario.findOneAndUpdate({ telefono: d.telefono }, { $set: actualizacion }, { upsert: true });
         res.json({ mensaje: "Ok" });
     } catch (e) { res.status(500).json({ error: "Error al guardar perfil" }); }
 });
@@ -426,11 +427,7 @@ app.get('/obtener-choferes-activos', async (req, res) => {
 app.post('/actualizar-ubicacion-chofer', async (req, res) => {
     try {
         const { telefono, lat, lng, estado } = req.body;
-        await Ubicacion.findOneAndUpdate(
-            { telefono }, 
-            { lat, lng, estado, ultimaAct: new Date() }, 
-            { upsert: true }
-        );
+        await Ubicacion.findOneAndUpdate({ telefono }, { lat, lng, estado, ultimaAct: new Date() }, { upsert: true });
         res.json({ mensaje: "Ok" });
     } catch (e) { res.status(500).json({ error: "Error GPS" }); }
 });
@@ -449,20 +446,14 @@ function enviarNotificacionTelegram(viaje) {
                   `💰 *Precio:* ${viaje.precio}\n` +
                   `📞 *Tel:* ${viaje.pasajeroTel}\n\n` +
                   `🚕 _Revisar Panel de Control_`;
-
     const data = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: texto, parse_mode: 'Markdown' });
-
     const options = {
         hostname: 'api.telegram.org',
         port: 443,
         path: `/bot${TELEGRAM_TOKEN}/sendMessage`,
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-        }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
-
     const req = https.request(options, (res) => { res.on('data', () => {}); });
     req.on('error', (error) => { console.error("Error Telegram:", error); });
     req.write(data);
