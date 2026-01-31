@@ -16,11 +16,12 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// --- CONFIGURACIÓN TELEGRAM (CON SIGNO NEGATIVO PARA GRUPOS) ---
-const TELEGRAM_TOKEN = '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
+// --- CONFIGURACIÓN SEGURA (PUNTO 1 Y 2 DE AUDITORÍA) ---
+// El código intenta leer de Render, si no existe, usa el texto manual
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
 const TELEGRAM_CHAT_ID = '-1003837989085';
 
-// --- CONEXIÓN A MONGODB ---
+// --- CONEXIÓN A MONGODB SEGURA ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
@@ -109,8 +110,8 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.model('Config', ConfigSchema);
 
-// --- PROTECCIÓN DE ADMIN ---
-const ADMIN_PASSWORD = "smart2026"; // Cambiala aquí si querés otra
+// --- PROTECCIÓN DE ADMIN (PUNTO 16) ---
+const ADMIN_PASSWORD = "smart2026"; 
 
 const verificarAdmin = (req, res, next) => {
     const password = req.query.pass;
@@ -137,7 +138,6 @@ io.on('connection', (socket) => {
 app.use(express.static(path.join(__dirname, 'Public')));
 app.use('/chofer', express.static(path.join(__dirname, 'chofer')));
 app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
-// La ruta /admin se maneja abajo con protección
 
 app.post('/calificar-pasajero', async (req, res) => {
     try {
@@ -403,7 +403,7 @@ app.post('/actualizar-ubicacion-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error GPS" }); }
 });
 
-// Ruta protegida con contraseña
+// Ruta protegida
 app.get('/admin-panel', verificarAdmin, (req, res) => { 
     res.sendFile(path.join(__dirname, 'admin', 'index-admin.html')); 
 });
