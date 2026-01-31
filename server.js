@@ -17,7 +17,6 @@ app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // --- CONFIGURACIÓN SEGURA (PUNTO 1 Y 2 DE AUDITORÍA) ---
-// El código intenta leer de Render, si no existe, usa el texto manual
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
 const TELEGRAM_CHAT_ID = '-1003837989085';
 
@@ -328,6 +327,12 @@ app.get('/obtener-usuarios', async (req, res) => {
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
+
+        // --- RETOQUE DE SEGURIDAD (PUNTO 5 DE AUDITORÍA) ---
+        if (!d.nombre || !d.autoModelo || !d.autoPatente) {
+            return res.status(400).json({ error: "Faltan datos obligatorios: Nombre, Modelo o Patente." });
+        }
+
         const actualizacion = {
             nombre: d.nombre,
             autoModelo: d.autoModelo || d.modelo,
