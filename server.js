@@ -71,7 +71,7 @@ const Viaje = mongoose.model('Viaje', ViajeSchema);
 
 const TokenSchema = new mongoose.Schema({
     codigo: { type: String, unique: true },
-    horas: { type: Number, default: 24 }, // AGREGADO: Duración del PIN
+    horas: { type: Number, default: 24 }, 
     usado: { type: Boolean, default: false },
     usadoPor: { type: String, default: null },
     fechaUso: { type: Date, default: null },
@@ -178,27 +178,19 @@ app.get('/obtener-ultimo-mensaje/:rol', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error al obtener mensaje" }); }
 });
 
-// --- RUTA SOLICITAR VIAJE CON TABLA DE PRECIOS BLINDADA ---
+// --- RUTA SOLICITAR VIAJE ---
 app.post('/solicitar-viaje', async (req, res) => {
     try {
         const d = req.body;
-
         const dist = parseFloat(d.distancia.replace(/[^\d.]/g, '')) || 0;
-        
         const tarifasBD = await Tarifa.findOne() || { precioKm: 900 };
         const precioKmFinal = tarifasBD.precioKm || 900;
 
         let precioCalculado = 0;
-
-        if (dist <= 3) {
-            precioCalculado = 3500;
-        } else if (dist > 3 && dist <= 3.5) {
-            precioCalculado = 4000;
-        } else if (dist > 3.5 && dist <= 5) {
-            precioCalculado = 4500;
-        } else {
-            precioCalculado = dist * precioKmFinal;
-        }
+        if (dist <= 3) { precioCalculado = 3500; } 
+        else if (dist > 3 && dist <= 3.5) { precioCalculado = 4000; } 
+        else if (dist > 3.5 && dist <= 5) { precioCalculado = 4500; } 
+        else { precioCalculado = dist * precioKmFinal; }
 
         const precioFinalString = `$${Math.round(precioCalculado)}`; 
 
@@ -216,9 +208,26 @@ app.post('/solicitar-viaje', async (req, res) => {
         enviarNotificacionTelegram(nuevoViaje);
         res.json({ mensaje: "Viaje solicitado con éxito", id: nuevoViaje._id });
     } catch (e) { 
-        console.error("Error en solicitar-viaje:", e);
         res.status(500).json({ error: "Error al solicitar viaje" }); 
     }
+});
+
+// --- NUEVA RUTA: CANCELAR VIAJE (PUNTO 9) ---
+app.post('/cancelar-viaje-pasajero', async (req, res) => {
+    try {
+        const { viajeId } = req.body;
+        const viaje = await Viaje.findById(viajeId);
+        if (viaje) {
+            const texto = `❌ *VIAJE CANCELADO POR EL PASAJERO*\n\n` +
+                          `👤 *Pasajero:* ${viaje.pasajero}\n` +
+                          `📞 *Tel:* ${viaje.pasajeroTel}\n` +
+                          `📍 *Origen:* ${viaje.origen}\n` +
+                          `🏁 *Destino:* ${viaje.destino}\n`;
+            enviarNotificacionTelegramSimple(texto);
+            await Viaje.findByIdAndDelete(viajeId);
+            res.json({ ok: true });
+        } else { res.status(404).json({ error: "No encontrado" }); }
+    } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
 app.get('/viajes-pendientes', async (req, res) => {
@@ -361,9 +370,6 @@ app.get('/obtener-usuarios', async (req, res) => {
 app.post('/actualizar-perfil-chofer', async (req, res) => {
     try {
         const d = req.body;
-        if (!d.nombre || !d.autoModelo || !d.autoPatente) {
-            return res.status(400).json({ error: "Faltan datos obligatorios." });
-        }
         const actualizacion = {
             nombre: d.nombre,
             autoModelo: d.autoModelo || d.modelo,
@@ -377,15 +383,13 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
             rol: 'chofer',
             estadoRevision: 'pendiente' 
         };
-        Object.keys(actualizacion).forEach(key => actualizacion[key] === undefined && delete actualizacion[key]);
         await Usuario.findOneAndUpdate({ telefono: d.telefono }, { $set: actualizacion }, { upsert: true });
         res.json({ mensaje: "Ok" });
-    } catch (e) { res.status(500).json({ error: "Error al guardar perfil" }); }
+    } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
 app.post('/crear-token', async (req, res) => {
     try {
-        // MODIFICADO: Ahora guarda las horas seleccionadas en el Admin
         const nuevoToken = new Token({ 
             codigo: req.body.codigo, 
             horas: req.body.horas || 24 
@@ -400,14 +404,10 @@ app.post('/validar-token', async (req, res) => {
         const { codigo, telefono } = req.body;
         const t = await Token.findOne({ codigo: codigo.trim(), usado: false });
         if (t) {
-            // MODIFICADO: Usa el valor de 'horas' del PIN, o 24 si no existe
             const horasASumar = t.horas || 24;
-            
-            // Lógica de acumulado: si ya tiene tiempo, suma desde el vencimiento, sino desde ahora
             const choferActual = await Usuario.findOne({ telefono });
             const baseTime = (choferActual && choferActual.vencimientoPago > new Date()) ? choferActual.vencimientoPago : new Date();
             const vencimiento = new Date(baseTime.getTime() + (horasASumar * 60 * 60 * 1000));
-            
             t.usado = true; t.usadoPor = telefono; t.fechaUso = new Date();
             await t.save();
             await Usuario.findOneAndUpdate({ telefono }, { pagoActivo: true, vencimientoPago: vencimiento });
@@ -454,6 +454,10 @@ function enviarNotificacionTelegram(viaje) {
                   `💰 *Precio:* ${viaje.precio}\n` +
                   `📞 *Tel:* ${viaje.pasajeroTel}\n\n` +
                   `🚕 _Revisar Panel de Control_`;
+    enviarNotificacionTelegramSimple(texto);
+}
+
+function enviarNotificacionTelegramSimple(texto) {
     const data = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: texto, parse_mode: 'Markdown' });
     const options = {
         hostname: 'api.telegram.org',
@@ -462,7 +466,7 @@ function enviarNotificacionTelegram(viaje) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
-    const req = https.request(options, (res) => { res.on('data', () => {}); });
+    const req = https.request(options, (res) => {});
     req.on('error', (error) => { console.error("Error Telegram:", error); });
     req.write(data);
     req.end();
