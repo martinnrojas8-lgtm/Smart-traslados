@@ -109,6 +109,18 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.model('Config', ConfigSchema);
 
+// --- PROTECCIÓN DE ADMIN ---
+const ADMIN_PASSWORD = "smart2026"; // Cambiala aquí si querés otra
+
+const verificarAdmin = (req, res, next) => {
+    const password = req.query.pass;
+    if (password === ADMIN_PASSWORD) {
+        next();
+    } else {
+        res.status(401).send("Acceso denegado: Se requiere contraseña de administrador.");
+    }
+};
+
 // --- LÓGICA DE SOCKETS ---
 io.on('connection', (socket) => {
     socket.on('registrar-chofer', async (telefono) => {
@@ -123,9 +135,9 @@ io.on('connection', (socket) => {
 
 // --- RUTAS ---
 app.use(express.static(path.join(__dirname, 'Public')));
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.use('/chofer', express.static(path.join(__dirname, 'chofer')));
 app.use('/pasajero', express.static(path.join(__dirname, 'pasajero')));
+// La ruta /admin se maneja abajo con protección
 
 app.post('/calificar-pasajero', async (req, res) => {
     try {
@@ -391,7 +403,11 @@ app.post('/actualizar-ubicacion-chofer', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error GPS" }); }
 });
 
-app.get('/admin-panel', (req, res) => { res.sendFile(path.join(__dirname, 'admin', 'index-admin.html')); });
+// Ruta protegida con contraseña
+app.get('/admin-panel', verificarAdmin, (req, res) => { 
+    res.sendFile(path.join(__dirname, 'admin', 'index-admin.html')); 
+});
+
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'Public', 'login.html')); });
 
 function enviarNotificacionTelegram(viaje) {
@@ -424,5 +440,3 @@ function enviarNotificacionTelegram(viaje) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Servidor Smart Online en puerto ${PORT} 🚀`));
-
-
