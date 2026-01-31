@@ -134,7 +134,7 @@ let datosAuto = { modelo: "", patente: "", color: "" };
 let ultimaRutaDestino = ""; let faseViaje = 1; let audioInterval;
 let infoPrecioFinal = ""; let infoDistanciaFinal = ""; let monitorCancelacion = null; let currentRatingChofer = 0;
 let pasajeroTelActual = null;
-let ultimaPosicionMapa = null; // Para control de salto de GPS
+let ultimaPosicionMapa = null; 
 
 function activarKeepAlive() {
     const video = document.getElementById('keepAliveVideo');
@@ -324,16 +324,49 @@ function iniciarReloj(vencimiento) {
     }, 1000);
 }
 
+// NUEVA FUNCIÓN INITMAP (VISIÓN 3D)
 function initMap() {
     navigator.geolocation.getCurrentPosition(pos => {
-        const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        map = new google.maps.Map(document.getElementById("map"), { center: myPos, zoom: 17, disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] } ] });
-        marker = new google.maps.Marker({ position: myPos, map: map, icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, fillColor: "#00c853", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const heading = pos.coords.heading || 0;
+        
+        map = new google.maps.Map(document.getElementById("map"), { 
+            center: coords, 
+            zoom: 17, 
+            tilt: 45,
+            heading: heading,
+            disableDefaultUI: true, 
+            styles: [ 
+                { elementType: "geometry", stylers: [{ color: "#212121" }] }, 
+                { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] } 
+            ] 
+        });
+
+        marker = new google.maps.Marker({ 
+            position: coords, 
+            map: map, 
+            icon: { 
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, 
+                scale: 7, 
+                fillColor: "#00c853", 
+                fillOpacity: 1, 
+                strokeColor: "#fff", 
+                strokeWeight: 2,
+                rotation: heading
+            } 
+        });
+
         directionsService = new google.maps.DirectionsService(); 
-        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, preserveViewport: true });
+        directionsRenderer = new google.maps.DirectionsRenderer({ 
+            map: map, 
+            preserveViewport: true, 
+            suppressMarkers: true,
+            polylineOptions: { strokeColor: "#2196F3", strokeWeight: 5, strokeOpacity: 0.8 }
+        });
     }, null, { enableHighAccuracy: true });
 }
 
+// NUEVA FUNCIÓN TRANSMITIR UBICACIÓN (SEGUIMIENTO SUAVE)
 function transmitirUbicacion() {
     if(!pagoConfirmado) return; 
     navigator.geolocation.getCurrentPosition(pos => {
@@ -342,7 +375,10 @@ function transmitirUbicacion() {
 
         fetch("/actualizar-ubicacion-chofer", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ telefono: sesion.telefono, lat: coords.lat, lng: coords.lng, heading: heading, estado: estadoActual }) });
         
-        if(marker) { marker.setPosition(coords); }
+        if(marker) { 
+            marker.setPosition(coords);
+            marker.setIcon({ ...marker.getIcon(), rotation: heading });
+        }
 
         if(viajeActualId) { 
             if (ultimaPosicionMapa) {
@@ -350,14 +386,17 @@ function transmitirUbicacion() {
                 const p2 = new google.maps.LatLng(coords.lat, coords.lng);
                 const distancia = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
                 
-                if (distancia > 12) {
-                    map.panTo(coords);
-                    if (map.getZoom() < 17) map.setZoom(17);
+                if (distancia > 10) {
+                    map.moveCamera({
+                        center: coords,
+                        heading: heading,
+                        tilt: 45,
+                        zoom: 17
+                    });
                     ultimaPosicionMapa = coords;
                 }
             } else {
-                map.panTo(coords);
-                map.setZoom(17);
+                map.moveCamera({ center: coords, heading: heading, tilt: 45, zoom: 17 });
                 ultimaPosicionMapa = coords;
             }
             trazarRuta(ultimaRutaDestino); 
@@ -387,7 +426,6 @@ setInterval(async () => {
             infoDistanciaFinal = v.distancia || "0 km";
             pasajeroTelActual = v.pasajeroTel;
             
-            // AJUSTE: Visualización de Parada si existe
             let textoParada = v.parada ? `<br><span style="color:#000; background:#fff; padding:2px 5px; border-radius:4px; font-size:12px;">PARADA: ${v.parada}</span>` : "";
             
             document.getElementById("datosViaje").innerHTML = `Pasajero: <b>${v.pasajero}</b><br>Desde: ${v.origen}<br>Hasta: ${v.destino}${textoParada}`;
@@ -432,7 +470,6 @@ function gestionarFaseViaje() {
     } else if (faseViaje === 2) {
         faseViaje = 3;
     } else if (faseViaje === 3) { 
-        // AJUSTE: Antes de abrir el modal, nos aseguramos que los KM estén cargados
         document.getElementById("distanciaFinalModal").innerText = infoDistanciaFinal;
         finalizarViaje(); 
         return; 
