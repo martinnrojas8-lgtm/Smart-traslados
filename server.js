@@ -71,6 +71,7 @@ const Viaje = mongoose.model('Viaje', ViajeSchema);
 
 const TokenSchema = new mongoose.Schema({
     codigo: { type: String, unique: true },
+    horas: { type: Number, default: 24 }, // AGREGADO: Duración del PIN
     usado: { type: Boolean, default: false },
     usadoPor: { type: String, default: null },
     fechaUso: { type: Date, default: null },
@@ -182,24 +183,20 @@ app.post('/solicitar-viaje', async (req, res) => {
     try {
         const d = req.body;
 
-        // Limpiamos la distancia (por si viene como "5.2 km")
         const dist = parseFloat(d.distancia.replace(/[^\d.]/g, '')) || 0;
         
-        // Obtenemos tarifa por KM de la BD (por defecto 900)
         const tarifasBD = await Tarifa.findOne() || { precioKm: 900 };
         const precioKmFinal = tarifasBD.precioKm || 900;
 
         let precioCalculado = 0;
 
-        // --- LÓGICA DE TABLA PACTADA CON CHOFERES ---
         if (dist <= 3) {
             precioCalculado = 3500;
         } else if (dist > 3 && dist <= 3.5) {
-            precioCalculated = 4000;
+            precioCalculado = 4000;
         } else if (dist > 3.5 && dist <= 5) {
             precioCalculado = 4500;
         } else {
-            // De 5km en adelante, precio por KM puro
             precioCalculado = dist * precioKmFinal;
         }
 
@@ -388,7 +385,11 @@ app.post('/actualizar-perfil-chofer', async (req, res) => {
 
 app.post('/crear-token', async (req, res) => {
     try {
-        const nuevoToken = new Token({ codigo: req.body.codigo });
+        // MODIFICADO: Ahora guarda las horas seleccionadas en el Admin
+        const nuevoToken = new Token({ 
+            codigo: req.body.codigo, 
+            horas: req.body.horas || 24 
+        });
         await nuevoToken.save();
         res.json({ mensaje: "Token creado" });
     } catch (e) { res.status(500).json({ error: "Error" }); }
@@ -399,7 +400,14 @@ app.post('/validar-token', async (req, res) => {
         const { codigo, telefono } = req.body;
         const t = await Token.findOne({ codigo: codigo.trim(), usado: false });
         if (t) {
-            const vencimiento = new Date(Date.now() + (24 * 60 * 60 * 1000));
+            // MODIFICADO: Usa el valor de 'horas' del PIN, o 24 si no existe
+            const horasASumar = t.horas || 24;
+            
+            // Lógica de acumulado: si ya tiene tiempo, suma desde el vencimiento, sino desde ahora
+            const choferActual = await Usuario.findOne({ telefono });
+            const baseTime = (choferActual && choferActual.vencimientoPago > new Date()) ? choferActual.vencimientoPago : new Date();
+            const vencimiento = new Date(baseTime.getTime() + (horasASumar * 60 * 60 * 1000));
+            
             t.usado = true; t.usadoPor = telefono; t.fechaUso = new Date();
             await t.save();
             await Usuario.findOneAndUpdate({ telefono }, { pagoActivo: true, vencimientoPago: vencimiento });
