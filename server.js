@@ -318,9 +318,16 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
+// --- RUTA MODIFICADA: VALIDACIÓN DE NOMBRE (PUNTO 5) ---
 app.post('/register', async (req, res) => {
     try {
         const { telefono, rol, nombre } = req.body; 
+
+        // Validación rápida: nombre obligatorio y mínimo 3 caracteres
+        if (!nombre || nombre.trim().length < 3) {
+            return res.status(400).json({ mensaje: "El nombre debe tener al menos 3 letras." });
+        }
+
         const existe = await Usuario.findOne({ telefono });
         if(existe) {
             if (existe.bloqueado) return res.status(403).json({ mensaje: "Número bloqueado" });
@@ -328,10 +335,14 @@ app.post('/register', async (req, res) => {
             await existe.save();
             return res.json({ mensaje: "Ok", usuario: existe });
         }
-        const nuevo = new Usuario({ telefono, rol: rol.toLowerCase().trim(), nombre: nombre || "" });
+        const nuevo = new Usuario({ 
+            telefono, 
+            rol: rol.toLowerCase().trim(), 
+            nombre: nombre.trim() 
+        });
         await nuevo.save();
         res.json({ mensaje: "Ok", usuario: nuevo });
-    } catch (e) { res.status(500).json({ error: "Error" }); }
+    } catch (e) { res.status(500).json({ error: "Error en registro" }); }
 });
 
 app.get('/obtener-usuarios', async (req, res) => {
