@@ -18,7 +18,7 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // --- CONFIGURACIÓN TELEGRAM (CON SIGNO NEGATIVO PARA GRUPOS) ---
 const TELEGRAM_TOKEN = '8159542763:AAFdAuF-ancC96pbEtxjHB6w3eLQVEuSk8s';
-const TELEGRAM_CHAT_ID = '-1006362924370';
+const TELEGRAM_CHAT_ID = '-1003837989085';
 
 // --- CONEXIÓN A MONGODB ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://martinnrojas8:martin123@cluster0.v7z8x.mongodb.net/smart-traslados?retryWrites=true&w=majority';
@@ -424,4 +424,5 @@ function enviarNotificacionTelegram(viaje) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Servidor Smart Online en puerto ${PORT} 🚀`));
+
 
